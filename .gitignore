@@ -1,94 +1,27 @@
 .DS_Store
-/.build
-/Packages
-/*.xcodeproj
+
+# SwiftPM and Xcode
+/.build/
+/Packages/
+/*.xcodeproj/
 xcuserdata/
 DerivedData/
-.swiftpm/config/registries.json
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.swiftpm/
+
+# Local credentials and machine state
 .netrc
-.swiftpm
-
-# C# specific gitignore for NeoSharp
-NeoSharp/bin/
-NeoSharp/obj/
-NeoSharp/**/bin/
-NeoSharp/**/obj/
-NeoSharp/**/*.user
-NeoSharp/**/*.suo
-NeoSharp/**/*.cache
-NeoSharp/**/.vs/
-NeoSharp/**/packages/
-NeoSharp/**/*.nupkg
-NeoSharp/**/*.nuget.props
-NeoSharp/**/*.nuget.targets
-NeoSharp/**/project.lock.json
-NeoSharp/**/project.fragment.lock.json
-NeoSharp/**/artifacts/
-
-# Build results
-NeoSharp/[Dd]ebug/
-NeoSharp/[Dd]ebugPublic/
-NeoSharp/[Rr]elease/
-NeoSharp/[Rr]eleases/
-NeoSharp/x64/
-NeoSharp/x86/
-NeoSharp/[Ww][Ii][Nn]32/
-NeoSharp/[Aa][Rr][Mm]/
-NeoSharp/[Aa][Rr][Mm]64/
-NeoSharp/bld/
-
-# Visual Studio files
-NeoSharp/*.suo
-NeoSharp/*.user
-NeoSharp/*.userosscache
-NeoSharp/*.sln.docstates
-NeoSharp/.vs/
-
-# Rider
-NeoSharp/.idea/
-
-# User-specific files (MonoDevelop/Xamarin Studio)
-NeoSharp/*.userprefs
-
-# Test Results
-NeoSharp/[Tt]est[Rr]esult*/
-NeoSharp/[Bb]uild[Ll]og.*
-
-# NCrunch
-NeoSharp/_NCrunch_*
-NeoSharp/.*crunch*.local.xml
-NeoSharp/nCrunchTemp_*
-
-# MightyMoose
-NeoSharp/*.mm.*
-NeoSharp/AutoTest.Net/
-
-# Web workbench (sass)
-NeoSharp/.sass-cache/
-
-# Installshield output folder
-NeoSharp/[Ee]xpress/
-
-# DocProject is a documentation generator add-in
-NeoSharp/DocProject/buildhelp/
-NeoSharp/DocProject/Help/*.HxT
-NeoSharp/DocProject/Help/*.HxC
-NeoSharp/DocProject/Help/*.hhc
-NeoSharp/DocProject/Help/*.hhk
-NeoSharp/DocProject/Help/*.hhp
-NeoSharp/DocProject/Help/Html2
-NeoSharp/DocProject/Help/html
-
-# Windows Store app package directories and files
-NeoSharp/AppPackages/
-NeoSharp/BundleArtifacts/
-NeoSharp/Package.StoreAssociation.xml
-NeoSharp/_pkginfo.txt
-
-# Visual Studio cache/options directory
-NeoSharp/.vs/
 .omx/
+.hive-mind/
+.swarm/
+
+# Removed/generated non-SDK artifacts
+NeoSharp/
+neo_csharp/
+MISSION_ACCOMPLISHED.md
+RELEASE_SUMMARY.md
+SECURITY_FIXES_SUMMARY.md
+build_neocsharp.sh
+*.log
 
 # Generated documentation from vendored Swift packages
 Vendor/**/docs/
