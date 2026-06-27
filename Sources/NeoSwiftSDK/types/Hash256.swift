@@ -2,7 +2,7 @@
 import BigInt
 
 /// A Hash256 is a 32 bytes long hash created from some data by applying SHA-256. These hashes are mostly used for obtaining transaction or block hashes.
-public struct Hash256: StringDecodable, Hashable {
+public struct Hash256: StringDecodable, Codable, Hashable, Sendable {
     
     /// The hash is stored as an unsigned integer in big-endian order.
     private let hash: Bytes

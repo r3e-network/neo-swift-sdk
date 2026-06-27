@@ -57,20 +57,33 @@ public final class ScriptBuilder {
         guard let param = param, let value = param.value else {
             return opCode(.pushNull)
         }
+        let rawValue = value.base
         switch param.type {
-        case .byteArray, .signature, .publicKey: return pushData(value as! Bytes)
-        case .boolean: return pushBoolean(value as! Bool)
+        case .byteArray, .signature, .publicKey: return try pushData(contractValue(rawValue, as: Bytes.self, for: param.type))
+        case .boolean: return try pushBoolean(contractValue(rawValue, as: Bool.self, for: param.type))
         case .integer:
-            if let bInt = value as? BInt { return try pushInteger(bInt)}
-            else { return try pushInteger(value as! Int) }
-        case .hash160: return pushData((value as! Hash160).toLittleEndianArray())
-        case .hash256: return pushData((value as! Hash256).toLittleEndianArray())
-        case .string: return pushData(value as! String)
-        case .array: return try pushArray(value as! [ContractParameter])
-        case .map: return try pushMap(value as! [ContractParameter: ContractParameter])
+            if let bInt = rawValue as? BInt { return try pushInteger(bInt) }
+            else if let int = rawValue as? Int { return try pushInteger(int) }
+            throw contractValueError(expected: "Int or BInt", actual: rawValue, type: param.type)
+        case .hash160: return try pushData(contractValue(rawValue, as: Hash160.self, for: param.type).toLittleEndianArray())
+        case .hash256: return try pushData(contractValue(rawValue, as: Hash256.self, for: param.type).toLittleEndianArray())
+        case .string: return try pushData(contractValue(rawValue, as: String.self, for: param.type))
+        case .array: return try pushArray(contractValue(rawValue, as: [ContractParameter].self, for: param.type))
+        case .map: return try pushMap(contractValue(rawValue, as: [ContractParameter: ContractParameter].self, for: param.type))
         case .any: return self
         default: throw NeoError.illegalArgument("Parameter type '\(param.type.jsonValue)' not supported.")
         }
+    }
+
+    private func contractValue<T>(_ value: Any, as type: T.Type, for parameterType: ContractParamterType) throws -> T {
+        guard let typedValue = value as? T else {
+            throw contractValueError(expected: "\(T.self)", actual: value, type: parameterType)
+        }
+        return typedValue
+    }
+
+    private func contractValueError(expected: String, actual: Any, type: ContractParamterType) -> NeoError {
+        return NeoError.illegalArgument("Contract parameter \(type.jsonValue) expected \(expected), got \(Swift.type(of: actual)).")
     }
     
     /// Adds a push operation with the given integer to the script. The integer is encoded in its two's complement and in little-endian order.
@@ -243,4 +256,3 @@ public final class ScriptBuilder {
     }
     
 }
-

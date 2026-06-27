@@ -140,6 +140,19 @@ class ContractParameterTests: XCTestCase {
         let p2 = ContractParameter.integer(BInt.TEN)
         assertContractParameter(p2, BInt.TEN, .integer)
     }
+
+    public func testBigIntegerCodableDoesNotRequireIntCast() throws {
+        let integer = BInt("123456789012345678901234567890")!
+        let parameter = ContractParameter.integer(integer)
+
+        let data = try JSONEncoder().encode(parameter)
+        let json = String(data: data, encoding: .utf8)!
+
+        XCTAssertTrue(json.contains("\"value\":\"123456789012345678901234567890\""))
+
+        let decoded = try JSONDecoder().decode(ContractParameter.self, from: data)
+        assertContractParameter(decoded, integer, .integer)
+    }
     
     public func testHash160() {
         let hash = try! Hash160("576f6f6c6f576f6f6c6f576f6f6c6f576f6f6c6f")

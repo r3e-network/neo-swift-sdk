@@ -55,11 +55,15 @@ public final class NeoTransaction {
     /// The sender of this transaction.
     ///
     /// The sender is the account that pays for the transaction's fees.
-    public var sender: Hash160 {
-        guard let signer = signers.first(where: { $0.scopes.contains(.none) }) ?? signers.first else {
-            preconditionFailure("Transaction must have at least one signer to determine sender")
+    public var sender: Hash160? {
+        return signers.first(where: { $0.scopes.contains(.none) })?.signerHash ?? signers.first?.signerHash
+    }
+
+    public func getSender() throws -> Hash160 {
+        guard let sender = sender else {
+            throw TransactionError.transactionConfiguration("Transaction must have at least one signer to determine sender.")
         }
-        return signer.signerHash
+        return sender
     }
     
     public var txId: Hash256? {
@@ -236,9 +240,9 @@ extension NeoTransaction: NeoSerializable {
     }
 
     public static func deserialize(_ reader: BinaryReader) throws -> Self {
-        let version = reader.readByte(), nonce = Int(reader.readUInt32())
-        let systemFee = Int(reader.readInt64()), networkFee = Int(reader.readInt64())
-        let validUntilBlock = Int(reader.readUInt32())
+        let version = try reader.readByte(), nonce = try Int(reader.readUInt32())
+        let systemFee = try Int(reader.readInt64()), networkFee = try Int(reader.readInt64())
+        let validUntilBlock = try Int(reader.readUInt32())
         let signers: [Signer] = try reader.readSerializableList()
         let attributes = try readTransactionAttributes(reader, signers.count)
         let script = try reader.readVarBytes()
@@ -252,7 +256,7 @@ extension NeoTransaction: NeoSerializable {
     }
     
     private static func readTransactionAttributes(_ reader: BinaryReader, _ signerSize: Int) throws -> [TransactionAttribute] {
-        let nrOfAttributes = reader.readVarInt()
+        let nrOfAttributes = try reader.readVarInt()
         guard nrOfAttributes + signerSize <= NeoConstants.MAX_TRANSACTION_ATTRIBUTES else {
             throw NeoError.deserialization("A transaction can hold at most \(NeoConstants.MAX_TRANSACTION_ATTRIBUTES) attributes (including signers). Input data had \(signerSize) attributes.")
         }

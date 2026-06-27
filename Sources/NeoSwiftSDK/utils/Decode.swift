@@ -1,7 +1,7 @@
 import BigInt
 import Foundation
 
-public protocol StringDecodable: Codable {
+public protocol StringDecodable {
     init(string: String) throws
     var string: String { get }
 }
@@ -21,7 +21,7 @@ extension StringDecodable {
     
 }
 
-public class SafeDecode<T: StringDecodable>: Codable {
+public class SafeDecode<T: StringDecodable & Codable>: Codable {
     
     let value: T
     
@@ -47,7 +47,7 @@ public class SafeDecode<T: StringDecodable>: Codable {
 }
 
 @propertyWrapper
-public struct StringDecode<T: StringDecodable & Hashable>: Codable, Hashable {
+public struct StringDecode<T: StringDecodable & Codable & Hashable>: Codable, Hashable {
     
     public var wrappedValue: T
     
@@ -83,7 +83,7 @@ extension Bool: StringDecodable {
     
 }
 
-extension BInt: StringDecodable {
+extension BInt: StringDecodable, @retroactive Decodable, @retroactive Encodable {
     
     public init(string: String) throws {
         guard let bInt = BInt(string) else {
@@ -149,7 +149,7 @@ extension Bytes: StringDecodable {
     
 }
 
-extension AnyHashable: Codable {
+extension AnyHashable: @retroactive Decodable, @retroactive Encodable {
     
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -167,24 +167,24 @@ extension AnyHashable: Codable {
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        switch self {
-        case is String: try container.encode(self as! String)
-        case is Int: try container.encode(self as! Int)
-        case is Int64: try container.encode(self as! Int64)
-        case is UInt64: try container.encode(self as! UInt64)
-        case is BInt: try container.encode(self as! BInt)
-        case is Bool: try container.encode(self as! Bool)
-        case is Double: try container.encode(self as! Double)
-        case is [AnyHashable]: try container.encode(self as! [AnyHashable])
-        case is [AnyHashable: AnyHashable]: try container.encode(self as! [AnyHashable: AnyHashable])
-        case is TransactionAttribute: try container.encode(self as! TransactionAttribute)
-        case is ContractParameter: try container.encode(self as! ContractParameter)
-        case is [ContractParameter]: try container.encode(self as! [ContractParameter])
-        case is ContractParametersContext: try container.encode(self as! ContractParametersContext)
-        case is TransactionSigner: try container.encode(self as! TransactionSigner)
-        case is [TransactionSigner]: try container.encode(self as! [TransactionSigner])
-        case is TransactionSendToken: try container.encode(self as! TransactionSendToken)
-        case is [TransactionSendToken]: try container.encode(self as! [TransactionSendToken])
+        switch base {
+        case let value as String: try container.encode(value)
+        case let value as Int: try container.encode(value)
+        case let value as Int64: try container.encode(value)
+        case let value as UInt64: try container.encode(value)
+        case let value as BInt: try container.encode(value)
+        case let value as Bool: try container.encode(value)
+        case let value as Double: try container.encode(value)
+        case let value as [AnyHashable]: try container.encode(value)
+        case let value as [AnyHashable: AnyHashable]: try container.encode(value)
+        case let value as TransactionAttribute: try container.encode(value)
+        case let value as ContractParameter: try container.encode(value)
+        case let value as [ContractParameter]: try container.encode(value)
+        case let value as ContractParametersContext: try container.encode(value)
+        case let value as TransactionSigner: try container.encode(value)
+        case let value as [TransactionSigner]: try container.encode(value)
+        case let value as TransactionSendToken: try container.encode(value)
+        case let value as [TransactionSendToken]: try container.encode(value)
         default: throw NeoError.illegalArgument("Unable to encode AnyHashable \(self)")
         }
     }
@@ -224,13 +224,16 @@ public struct SingleValueOrNilArray<T: Codable>: Codable {
 extension SingleValueOrNilArray: Equatable where T: Equatable { }
 extension SingleValueOrNilArray: Hashable where T: Hashable { }
 
-public class RawResponseJSONDecoder: JSONDecoder {
+public class RawResponseJSONDecoder: JSONDecoder, @unchecked Sendable {
     
     public override func decode<T>(_ type: T.Type, from data: Data) throws -> T where T : Decodable {
         let t = try super.decode(T.self, from: data)
         if var r = t as? HasRawResponse {
             r.rawResponse = String(data: data, encoding: .utf8)
-            return r as! T
+            guard let decoded = r as? T else {
+                throw NeoError.illegalArgument("Decoded response with raw payload could not be cast to \(T.self).")
+            }
+            return decoded
         }
         return t
     }

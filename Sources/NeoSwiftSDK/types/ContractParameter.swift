@@ -3,7 +3,7 @@ import BigInt
 import Foundation
 
 /// Contract parameters represent an input parameter for contract invocations.
-public struct ContractParameter: Codable, Hashable {
+public struct ContractParameter: Codable, Hashable, @unchecked Sendable {
         
     public let name: String?
     public let type: ContractParamterType
@@ -219,21 +219,20 @@ public struct ContractParameter: Codable, Hashable {
     public static func mapToContractParameter(_ value: Any?) throws -> ContractParameter {
         switch value {
         case nil: return any(nil)
-        case is ContractParameter: return value as! ContractParameter
-        case is Bool: return bool(value as! Bool)
-        case is Int: return integer(value as! Int)
-        case is BInt: return integer(value as! BInt)
-        case is Byte: return integer(value as! Byte)
-        case is BInt: return integer(value as! BInt)
-        case is Bytes: return byteArray(value as! Bytes)
-        case is String: return string(value as! String)
-        case is Hash160: return hash160(value as! Hash160)
-        case is Account: return try hash160(value as! Account)
-        case is Hash256: return hash256(value as! Hash256)
-        case is ECPublicKey: return try publicKey(value as! ECPublicKey)
-        case is Sign.SignatureData: return try signature(value as! Sign.SignatureData)
-        case is [AnyHashable]: return try array(value as! [AnyHashable])
-        case is [AnyHashable: AnyHashable]: return try map(value as! [AnyHashable: AnyHashable])
+        case let value as ContractParameter: return value
+        case let value as Bool: return bool(value)
+        case let value as Int: return integer(value)
+        case let value as BInt: return integer(value)
+        case let value as Byte: return integer(value)
+        case let value as Bytes: return byteArray(value)
+        case let value as String: return string(value)
+        case let value as Hash160: return hash160(value)
+        case let value as Account: return try hash160(value)
+        case let value as Hash256: return hash256(value)
+        case let value as ECPublicKey: return try publicKey(value)
+        case let value as Sign.SignatureData: return try signature(value)
+        case let value as [AnyHashable]: return try array(value)
+        case let value as [AnyHashable: AnyHashable]: return try map(value)
         default: throw NeoError.illegalArgument("The provided object could not be casted into a supported contract parameter type.")
         }
     }
@@ -243,18 +242,26 @@ public struct ContractParameter: Codable, Hashable {
         if let name = name { try container.encode(name, forKey: .name) }
         try container.encode(type.jsonValue, forKey: .type)
         if let value = value {
+            let rawValue = value.base
             switch type {
             case .any: try container.encode("", forKey: .value)
-            case .boolean: try container.encode(value as! Bool, forKey: .value)
-            case .integer: try container.encode(value as! Int, forKey: .value)
-            case .byteArray, .signature: try container.encode((value as! Bytes).base64Encoded, forKey: .value)
-            case .string, .interopInterface: try container.encode(value as! String, forKey: .value)
-            case .hash160: try container.encode((value as! Hash160).string, forKey: .value)
-            case .hash256: try container.encode((value as! Hash256).string, forKey: .value)
-            case .publicKey: try container.encode((value as! Bytes).noPrefixHex, forKey: .value)
-            case .array: try container.encode(value as! [ContractParameter], forKey: .value)
+            case .boolean: try container.encode(cast(rawValue, to: Bool.self), forKey: .value)
+            case .integer:
+                if let int = rawValue as? Int {
+                    try container.encode(int, forKey: .value)
+                } else if let bInt = rawValue as? BInt {
+                    try container.encode(bInt, forKey: .value)
+                } else {
+                    throw encodingError(expected: "Int or BInt", actual: rawValue)
+                }
+            case .byteArray, .signature: try container.encode(cast(rawValue, to: Bytes.self).base64Encoded, forKey: .value)
+            case .string, .interopInterface: try container.encode(cast(rawValue, to: String.self), forKey: .value)
+            case .hash160: try container.encode(cast(rawValue, to: Hash160.self).string, forKey: .value)
+            case .hash256: try container.encode(cast(rawValue, to: Hash256.self).string, forKey: .value)
+            case .publicKey: try container.encode(cast(rawValue, to: Bytes.self).noPrefixHex, forKey: .value)
+            case .array: try container.encode(cast(rawValue, to: [ContractParameter].self), forKey: .value)
             case .map:
-                let map = value as! [ContractParameter : ContractParameter]
+                let map = try cast(rawValue, to: [ContractParameter : ContractParameter].self)
                 try container.encode(map.map { ["key" : $0, "value": $1] }, forKey: .value)
             default: throw NeoError.unsupportedOperation("Parameter type '\(type.jsonValue)' not supported.")
             }
@@ -278,8 +285,16 @@ public struct ContractParameter: Codable, Hashable {
             if let s = try? values.decode(String.self, forKey: .value) { value = Bool(s) }
             else { value = try values.decode(Bool.self, forKey: .value) }
         case .integer:
-            if let s = try? values.decode(String.self, forKey: .value) { value = Int(s) }
-            else { value = try values.decode(Int.self, forKey: .value) }
+            if let s = try? values.decode(String.self, forKey: .value) {
+                let integer = try BInt(string: s)
+                if let int = integer.asInt() {
+                    value = int
+                } else {
+                    value = integer
+                }
+            } else {
+                value = try values.decode(Int.self, forKey: .value)
+            }
         case .byteArray, .signature: value = try values.decode(String.self, forKey: .value).base64Decoded
         case .string, .interopInterface: value = try values.decode(String.self, forKey: .value)
         case .hash160: value = try Hash160(values.decode(String.self, forKey: .value))
@@ -289,10 +304,30 @@ public struct ContractParameter: Codable, Hashable {
         case .map:
             var map: [ContractParameter : ContractParameter] = [:]
             try values.decode([[String : ContractParameter]].self, forKey: .value)
-                .forEach { map[$0["key"]!] = $0["value"]! }
+                .forEach { entry in
+                    guard let key = entry["key"], let value = entry["value"] else {
+                        throw NeoError.deserialization("Map contract parameter entries must contain key and value fields.")
+                    }
+                    map[key] = value
+                }
             value = map
         default: throw NeoError.unsupportedOperation("Parameter type '\(type.jsonValue)' not supported.")
         }
+    }
+
+    private func cast<T>(_ value: Any, to type: T.Type) throws -> T {
+        guard let typedValue = value as? T else {
+            throw encodingError(expected: "\(T.self)", actual: value)
+        }
+        return typedValue
+    }
+
+    private func encodingError(expected: String, actual: Any) -> EncodingError {
+        let context = EncodingError.Context(
+            codingPath: [],
+            debugDescription: "ContractParameter \(type.jsonValue) expected \(expected), got \(Swift.type(of: actual))."
+        )
+        return EncodingError.invalidValue(actual, context)
     }
     
     private enum CodingKeys: String, CodingKey {

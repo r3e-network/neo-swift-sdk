@@ -74,18 +74,17 @@ public final class SecureBytes {
     }
     
     /// Access bytes with a closure, ensuring secure handling
-    public func withUnsafeBytes<Result>(_ body: (UnsafeBufferPointer<UInt8>) throws -> Result) rethrows -> Result {
+    public func withUnsafeBytes<Result>(_ body: (UnsafeBufferPointer<UInt8>) throws -> Result) throws -> Result {
         guard !isCleared else {
-            fatalError("Attempted to access cleared SecureBytes")
+            throw NeoError.illegalState("Attempted to access cleared SecureBytes")
         }
         let buffer = UnsafeBufferPointer(start: bytes, count: count)
         return try body(buffer)
     }
     
     /// Get a copy of the bytes (use sparingly, as this creates non-secure copies)
-    public func toArray() -> [UInt8] {
-        guard !isCleared else { return [] }
-        return withUnsafeBytes { Array($0) }
+    public func toArray() throws -> [UInt8] {
+        return try withUnsafeBytes { Array($0) }
     }
     
     /// Update bytes at specific index
@@ -135,9 +134,8 @@ extension SecureBytes {
     }
     
     /// Convert to hexadecimal string (use sparingly)
-    public func toHexString() -> String {
-        guard !isCleared else { return "" }
-        return withUnsafeBytes { buffer in
+    public func toHexString() throws -> String {
+        return try withUnsafeBytes { buffer in
             buffer.map { String(format: "%02x", $0) }.joined()
         }
     }

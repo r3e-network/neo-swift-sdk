@@ -54,13 +54,31 @@ class BinaryReaderTests: XCTestCase {
         readInt64AndAssert([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00], 0)
         readInt64AndAssert([0x11, 0x33, 0x22, 0x8c, 0xae, 0x00, 0x00, 0x00, 0xff], 749_675_361_041)
     }
+
+    public func testReadByteThrowsWhenOutOfBounds() {
+        XCTAssertThrowsError(try reader([]).readByte()) { error in
+            XCTAssertEqual(error.localizedDescription, "Cannot read 1 byte at position 0. Only 0 bytes available.")
+        }
+    }
+
+    public func testReadBytesThrowsWhenOutOfBounds() {
+        XCTAssertThrowsError(try reader([0x01]).readBytes(2)) { error in
+            XCTAssertEqual(error.localizedDescription, "Cannot read 2 bytes at position 0. Only 1 byte available.")
+        }
+    }
+
+    public func testReadVarIntEnforcesMaximum() {
+        XCTAssertThrowsError(try reader([0xfd, 0x01, 0x00]).readVarInt(0)) { error in
+            XCTAssertEqual(error.localizedDescription, "Variable integer 1 exceeds maximum 0.")
+        }
+    }
     
     private func readUInt32AndAssert(_ input: Bytes, _ expected: UInt32) {
-        XCTAssertEqual(reader(input).readUInt32(), expected)
+        XCTAssertEqual(try? reader(input).readUInt32(), expected)
     }
     
     private func readInt64AndAssert(_ input: Bytes, _ expected: Int64) {
-        XCTAssertEqual(reader(input).readInt64(), expected)
+        XCTAssertEqual(try? reader(input).readInt64(), expected)
     }
     
     private func readPushDataBytesAndAssert(_ input: Bytes, _ expected: Bytes) {

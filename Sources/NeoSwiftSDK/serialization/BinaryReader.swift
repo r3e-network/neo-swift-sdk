@@ -6,7 +6,7 @@ public final class BinaryReader {
     
     public var position: Int = 0
     public var available: Int {
-        return array.count - position
+        return max(0, array.count - position)
     }
     
     private let array: Bytes
@@ -21,63 +21,61 @@ public final class BinaryReader {
     }
     
     public func reset() {
-        position = marker
+        if marker >= 0 {
+            position = marker
+        }
     }
     
-    public func readBoolean() -> Bool {
-        let b: Bool = array[position] == 1
-        position += 1
-        return b
+    public func readBoolean() throws -> Bool {
+        return try readByte() == 1
     }
     
-    public func readByte() -> Byte {
-        let b: Byte = array[position]
-        position += 1
-        return b
+    public func readByte() throws -> Byte {
+        return try readBytes(1)[0]
     }
     
-    public func readUnsignedByte() -> Int {
-        return Int(readByte())
+    public func readUnsignedByte() throws -> Int {
+        return try Int(readByte())
     }
     
     public func readBytes(_ length: Int) throws -> Bytes {
+        guard length >= 0 else {
+            throw NeoError.deserialization("Cannot read a negative number of bytes.")
+        }
+        guard available >= length else {
+            throw NeoError.deserialization("Cannot read \(length) byte\(length == 1 ? "" : "s") at position \(position). Only \(available) byte\(available == 1 ? "" : "s") available.")
+        }
         let p = position
         position += length
         return Bytes(array[p..<(p + length)])
     }
     
-    public func readUInt16() -> UInt16 {
-        let bytes: Bytes = Bytes(array[position..<position + 2])
-        position += 2
-        return bytes.toNumeric()
+    public func readUInt16() throws -> UInt16 {
+        return try readBytes(2).toNumeric()
     }
     
-    public func readInt16() -> Int16 {
-        let bytes: Bytes = Bytes(array[position..<position + 2])
-        position += 2
-        return bytes.toNumeric()
+    public func readInt16() throws -> Int16 {
+        return try readBytes(2).toNumeric()
     }
     
-    public func readUInt32() -> UInt32 {
-        let bytes: Bytes = Bytes(array[position..<position + 4])
-        position += 4
-        return bytes.toNumeric()
+    public func readUInt32() throws -> UInt32 {
+        return try readBytes(4).toNumeric()
     }
     
-    public func readInt32() -> Int32 {
-        let bytes: Bytes = Bytes(array[position..<position + 4])
-        position += 4
-        return bytes.toNumeric()
+    public func readInt32() throws -> Int32 {
+        return try readBytes(4).toNumeric()
     }
     
-    public func readInt64() -> Int64 {
-        let bytes: Bytes = Bytes(array[position..<position + 8])
-        position += 8
-        return bytes.toNumeric()
+    public func readInt64() throws -> Int64 {
+        return try readBytes(8).toNumeric()
+    }
+
+    public func readUInt64() throws -> UInt64 {
+        return try readBytes(8).toNumeric()
     }
     
     public func readEncodedECPoint() throws -> Bytes {
-        let byte = readByte()
+        let byte = try readByte()
         if byte == 0x02 || byte == 0x03 {
             return try byte + readBytes(32)
         }
@@ -86,7 +84,7 @@ public final class BinaryReader {
     
     public func readECPoint() throws -> ECPoint {
         let encoded: Bytes
-        let byte = readByte()
+        let byte = try readByte()
         switch byte {
         case 0x00: encoded = [0x00]
         case 0x02, 0x03: encoded = try byte + readBytes(32)
@@ -101,7 +99,7 @@ public final class BinaryReader {
     }
     
     public func readSerializableListVarBytes<T: NeoSerializable>() throws -> [T] {
-        let length = readVarInt(0x10000000)
+        let length = try readVarInt(0x10000000)
         var bytesRead = 0, offset = position
         var list: [T] = []
         while bytesRead < length {
@@ -117,7 +115,7 @@ public final class BinaryReader {
     }
     
     public func readSerializableList<T: NeoSerializable>() throws -> [T] {
-        let length = readVarInt(0x10000000)
+        let length = try readVarInt(0x10000000)
         var list: [T] = []
         for _ in 0..<length {
             do {
@@ -142,33 +140,47 @@ public final class BinaryReader {
     }
     
     public func readPushData() throws -> Bytes {
-        let byte = readByte()
+        let byte = try readByte()
         let size: Int
         switch byte {
-        case OpCode.pushData1.opcode: size = readUnsignedByte()
-        case OpCode.pushData2.opcode: size = Int(readInt16())
-        case OpCode.pushData4.opcode: size = Int(readInt32())
+        case OpCode.pushData1.opcode: size = try readUnsignedByte()
+        case OpCode.pushData2.opcode: size = try Int(readInt16())
+        case OpCode.pushData4.opcode: size = try Int(readInt32())
         default: throw NeoError.deserialization("Stream did not contain a PUSHDATA OpCode at the current position.")
         }
         return try readBytes(size)
     }
     
     public func readVarBytes(_ max: Int) throws -> Bytes {
-        return try readBytes(readVarInt(max))
+        let length = try readVarInt(max)
+        return try readBytes(length)
     }
     
-    public func readVarInt() -> Int {
-        return readVarInt(Int.max)
+    public func readVarInt() throws -> Int {
+        return try readVarInt(Int.max)
     }
     
-    public func readVarInt(_ max: Int) -> Int {
-        let first = readUnsignedByte()
-        switch first {
-        case 0xFD: return Int(readInt16())
-        case 0xFE: return Int(readInt32())
-        case 0xFF: return Int(readInt64())
-        default: return Int(first)
+    public func readVarInt(_ max: Int) throws -> Int {
+        guard max >= 0 else {
+            throw NeoError.deserialization("Variable integer maximum must not be negative.")
         }
+        let first = try readUnsignedByte()
+        let value: Int
+        switch first {
+        case 0xFD: value = try Int(readUInt16())
+        case 0xFE: value = try Int(readUInt32())
+        case 0xFF:
+            let uint64 = try readUInt64()
+            guard uint64 <= UInt64(Int.max) else {
+                throw NeoError.deserialization("Variable integer \(uint64) exceeds maximum \(Int.max).")
+            }
+            value = Int(uint64)
+        default: value = Int(first)
+        }
+        guard value <= max else {
+            throw NeoError.deserialization("Variable integer \(value) exceeds maximum \(max).")
+        }
+        return value
     }
     
     public func readPushString() throws -> String {
@@ -186,7 +198,7 @@ public final class BinaryReader {
     }
     
     public func readPushBigInt() throws -> BInt {
-        let byte = readByte()
+        let byte = try readByte()
         if byte.isBetween(.pushM1, .push16) {
             return BInt(Int(byte) - Int(OpCode.push0.opcode))
         }

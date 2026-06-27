@@ -126,7 +126,7 @@ public extension ECPrivateKey {
     
 }
 
-extension ECPrivateKey: Equatable {
+extension ECPrivateKey: @retroactive Equatable {
  
     public static func ==(lhs: ECPrivateKey, rhs: ECPrivateKey) -> Bool {
         return lhs.s == rhs.s
@@ -213,7 +213,7 @@ extension ECPublicKey: NeoSerializable {
     
 }
 
-extension ECPublicKey: Comparable {
+extension ECPublicKey: @retroactive Comparable {
     
     public static func < (lhs: ECPublicKey, rhs: ECPublicKey) -> Bool {
         return lhs.w.x != rhs.w.x ? (lhs.w.x < rhs.w.x) : (lhs.w.y < rhs.w.y)
@@ -225,7 +225,7 @@ extension ECPublicKey: Comparable {
     
 }
 
-extension ECPublicKey: Hashable {
+extension ECPublicKey: @retroactive Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(w.x * 17)

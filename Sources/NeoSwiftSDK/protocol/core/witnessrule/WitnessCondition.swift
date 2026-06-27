@@ -137,13 +137,14 @@ extension WitnessCondition: NeoSerializable {
     }
     
     public static func deserialize(_ reader: BinaryReader) throws -> WitnessCondition {
-        let typeByte = reader.readByte()
+        let typeByte = try reader.readByte()
         switch typeByte {
-        case BOOLEAN_BYTE: return .boolean(reader.readBoolean())
+        case BOOLEAN_BYTE: return try .boolean(reader.readBoolean())
         case NOT_BYTE:
             return try .not(WitnessCondition.deserialize(reader))
         case AND_BYTE, WitnessCondition.OR_BYTE:
-            let expressions = try (0 ..< reader.readVarInt()).map { _ in
+            let count = try reader.readVarInt()
+            let expressions = try (0 ..< count).map { _ in
                 return try WitnessCondition.deserialize(reader)
             }
             return typeByte == AND_BYTE ? .and(expressions) : .or(expressions)
@@ -196,4 +197,3 @@ extension WitnessCondition {
     }
     
 }
-

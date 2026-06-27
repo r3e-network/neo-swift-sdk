@@ -2,7 +2,7 @@
 import BigInt
 
 /// A Hash160 is a 20 bytes long hash created from some data by first applying SHA-256 and then RIPEMD-160. These hashes are mostly used for obtaining the script hash of a smart contract or an account.
-public struct Hash160: StringDecodable, Hashable {
+public struct Hash160: StringDecodable, Codable, Hashable, Sendable {
     
     /// The hash is stored as an unsigned integer in big-endian order.
     private let hash: Bytes

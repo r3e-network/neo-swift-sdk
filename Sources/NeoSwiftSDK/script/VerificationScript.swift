@@ -89,8 +89,8 @@ public class VerificationScript: NeoSerializable, Hashable {
                 return false
             }
             var m = 0
-            while reader.readByte() == OpCode.pushData1.opcode {
-                guard script.count >= reader.position + 35, reader.readByte() == 33 else {
+            while try reader.readByte() == OpCode.pushData1.opcode {
+                guard script.count >= reader.position + 35, try reader.readByte() == 33 else {
                     return false
                 }
                 _ = try reader.readECPoint()
@@ -101,7 +101,7 @@ public class VerificationScript: NeoSerializable, Hashable {
                 return false
             }
             reader.reset()
-            guard try m == reader.readPushInt(), reader.readByte() == OpCode.sysCall.opcode,
+            guard try m == reader.readPushInt(), try reader.readByte() == OpCode.sysCall.opcode,
                   try reader.readBytes(4).noPrefixHex == InteropService.systemCryptoCheckMultisig.hash else {
                 return false
             }
@@ -121,14 +121,14 @@ public class VerificationScript: NeoSerializable, Hashable {
         let reader = BinaryReader(script)
         do {
             if isSingleSigScript() {
-                _ = reader.readByte()
-                _ = reader.readByte()
+                _ = try reader.readByte()
+                _ = try reader.readByte()
                 return [try ECPublicKey(reader.readECPoint())]
             } else if isMultiSigScript() {
                 var keys: [ECPublicKey] = []
                 try _ = reader.readPushInt()
-                while reader.readByte() == OpCode.pushData1.opcode {
-                    _ = reader.readByte()
+                while try reader.readByte() == OpCode.pushData1.opcode {
+                    _ = try reader.readByte()
                     try keys.append(ECPublicKey(reader.readECPoint()))
                 }
                 return keys

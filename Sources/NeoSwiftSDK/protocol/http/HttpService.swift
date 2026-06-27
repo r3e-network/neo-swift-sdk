@@ -24,6 +24,7 @@ public class HttpService: Service {
     
     public let url: URL
     public let includeRawResponses: Bool
+    public let requestTimeout: TimeInterval
     public private(set) var headers = [String: String]()
     
     private var urlRequester: URLRequester
@@ -33,20 +34,27 @@ public class HttpService: Service {
     ///   - url: The URL to the HTTP service (JSON-RPC)
     ///   - urlSession: (For mocking) The URLRequester (URLSession) with which to make the request
     ///   - includeRawResponses: Option to include or not raw responses on the ``Response`` object
-    public init(url: URL = HttpService.DEFAULT_URL, urlSession: URLRequester = URLSession.shared, includeRawResponses: Bool = false) {
+    ///   - requestTimeout: Request timeout in seconds.
+    public init(url: URL = HttpService.DEFAULT_URL, urlSession: URLRequester = URLSession.shared, includeRawResponses: Bool = false, requestTimeout: TimeInterval = 30) {
         self.url = url
         self.urlRequester = urlSession
         self.includeRawResponses = includeRawResponses
+        self.requestTimeout = requestTimeout
     }
     
     public func performIO(_ payload: Data) async throws -> Data {
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url, timeoutInterval: requestTimeout)
         request.addValue(HttpService.JSON_MEDIA_TYPE, forHTTPHeaderField: "Content-Type")
         headers.forEach { request.addValue($1, forHTTPHeaderField: $0) }
         request.httpMethod = "POST"
         request.httpBody = payload
         do {
-            let (data, _) = try await urlRequester.data(from: request)
+            let (data, response) = try await urlRequester.data(from: request)
+            if let httpResponse = response as? HTTPURLResponse,
+               !(200..<300).contains(httpResponse.statusCode) {
+                let body = String(data: data, encoding: .utf8) ?? "<non-utf8 body>"
+                throw ProtocolError.clientConnection("HTTP \(httpResponse.statusCode) \(HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)): \(body)")
+            }
             return data
         } catch let error as URLError {
             throw ProtocolError.clientConnection("Invalid response received: \(error.errorCode); \(error.localizedDescription)")

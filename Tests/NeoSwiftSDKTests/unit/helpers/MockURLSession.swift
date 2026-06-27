@@ -24,6 +24,7 @@ class MockURLSession: URLRequester {
     private var data: [Data]? = nil
     private var dataMap: [String: [Data]]? = nil
     private var invokeFunctions: [String: Data]? = nil
+    private var response: URLResponse? = nil
     private var error: Error? = nil
     private let stateLock = NSLock()
     
@@ -57,6 +58,11 @@ class MockURLSession: URLRequester {
         self.error = error
         return self
     }
+
+    public func response(_ response: URLResponse?) -> MockURLSession {
+        self.response = response
+        return self
+    }
     
     public func requestInterceptor(_ requestInterceptor: @escaping (URLRequest) -> Void) -> MockURLSession {
         self.requestInterceptor = requestInterceptor
@@ -75,30 +81,36 @@ class MockURLSession: URLRequester {
                     print(function, requestBody)
                     let paramsRegex = try! NSRegularExpression(pattern: ".*\"params\":.*\(function).*")
                     if paramsRegex.firstMatch(in: requestBody, range: .init(location: 0, length: requestBody.utf16.count)) != nil {
-                        return (invokeFunctions[function]!, nil)
+                        return (invokeFunctions[function]!, response)
                     }
                 }
-                return (.init(), nil)
+                return (.init(), response)
             } else {
-                stateLock.lock()
-                defer { stateLock.unlock() }
-                guard let methodData = dataMap[method], !methodData.isEmpty else {
-                    return (defaultData, nil)
+                return withStateLock {
+                    guard let methodData = dataMap[method], !methodData.isEmpty else {
+                        return (defaultData, response)
+                    }
+                    let i = dataIs[method] ?? 0
+                    let data = i >= methodData.count ? methodData[0] : methodData[i]
+                    dataIs[method] = i + 1
+                    return (data, response)
                 }
-                let i = dataIs[method] ?? 0
-                let data = i >= methodData.count ? methodData[0] : methodData[i]
-                dataIs[method] = i + 1
-                return (data, nil)
             }
         }
         if let error = error {
             throw error
         }
+        return withStateLock {
+            let d = data?[i] ?? data?[0] ?? defaultData
+            i += 1
+            return (d, response)
+        }
+    }
+
+    private func withStateLock<T>(_ body: () throws -> T) rethrows -> T {
         stateLock.lock()
-        let d = data?[i] ?? data?[0] ?? defaultData
-        i += 1
-        stateLock.unlock()
-        return (d, nil)
+        defer { stateLock.unlock() }
+        return try body()
     }
     
 }

@@ -8,13 +8,17 @@ public class NeoRpcClientConfiguration {
     public static let MAX_VALID_UNTIL_BLOCK_INCREMENT_BASE: Int = 86_400_000
     public static let MAINNET_NNS_CONTRACT_HASH = try! Hash160("0x50ac1c37690cc2cfc594472833cf57505d5f46de")
     public static let REQUEST_COUNTER = Counter()
+    private static let addressVersionQueue = DispatchQueue(label: "com.neo-swift-sdk.rpc.address-version")
+    nonisolated(unsafe) private static var addressVersionStorage = DEFAULT_ADDRESS_VERSION
     
     /// The configured address version.
     ///
     /// The address version is used in the creation of Neo addresses from script hashes. It defaults to ``DEFAULT_ADDRESS_VERSION``
     ///
     /// This property is static because it is necessary in code that can be used independent of a connected Neo node.
-    public private(set) static var addressVersion = DEFAULT_ADDRESS_VERSION
+    public static var addressVersion: Byte {
+        addressVersionQueue.sync { addressVersionStorage }
+    }
     
     /// The configured network magic number.
     ///
@@ -82,7 +86,9 @@ public class NeoRpcClientConfiguration {
     /// This should match the configuration of the neo-node you connect to.
     /// - Parameter addressVersion: The address version
     public static func setAddressVersion(_ addressVersion: Byte) {
-        NeoRpcClientConfiguration.addressVersion = addressVersion
+        addressVersionQueue.sync {
+            addressVersionStorage = addressVersion
+        }
     }
     
     /// Sets the network magic number.
@@ -142,15 +148,17 @@ public class NeoRpcClientConfiguration {
     
 }
 
-public class Counter {
+public final class Counter: @unchecked Sendable {
 
-    private var queue = DispatchQueue(label: "Atomic")
+    private let queue = DispatchQueue(label: "com.neo-swift-sdk.rpc.counter")
     private(set) var value: Int = 1
 
     func getAndIncrement() -> Int {
-        let v = value
-        queue.sync { value += 1 }
-        return v
+        queue.sync {
+            let current = value
+            value += 1
+            return current
+        }
     }
     
     func set(_ i: Int) {
@@ -162,4 +170,3 @@ public class Counter {
     }
     
 }
-

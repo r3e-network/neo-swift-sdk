@@ -1,7 +1,7 @@
 
 import Foundation
-import SwiftECC
-import BigInt
+@preconcurrency import SwiftECC
+@preconcurrency import BigInt
 
 public struct NeoConstants {
 
@@ -54,18 +54,29 @@ public struct NeoConstants {
 
     // MARK: Cryptography
     
-    private static let DEFAULT_CURVE: ECCurve = .EC256r1
-    public private(set) static var SECP256R1_DOMAIN: Domain = .instance(curve: DEFAULT_CURVE)
-    public static let SECP256R1_HALF_CURVE_ORDER: BInt = SECP256R1_DOMAIN.order >> 1
+    private static let curveQueue = DispatchQueue(label: "com.neo-swift-sdk.constants.curve")
+    nonisolated(unsafe) private static var secp256r1Domain: Domain = .instance(curve: .EC256r1)
+
+    public static var SECP256R1_DOMAIN: Domain {
+        curveQueue.sync { secp256r1Domain }
+    }
+
+    public static var SECP256R1_HALF_CURVE_ORDER: BInt {
+        SECP256R1_DOMAIN.order >> 1
+    }
     
     // MARK: - Testing Support
     
     public static func startUsingCurveForTests(_ instance: ECCurve) {
-        SECP256R1_DOMAIN = .instance(curve: instance)
+        curveQueue.sync {
+            secp256r1Domain = .instance(curve: instance)
+        }
     }
     
     public static func stopUsingOtherCurveForTests() {
-        SECP256R1_DOMAIN = .instance(curve: DEFAULT_CURVE)
+        curveQueue.sync {
+            secp256r1Domain = .instance(curve: .EC256r1)
+        }
     }
     
 }

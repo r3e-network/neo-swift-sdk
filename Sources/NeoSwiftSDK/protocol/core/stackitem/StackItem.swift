@@ -2,7 +2,7 @@
 import Foundation
 import BigInt
 
-public indirect enum StackItem: Hashable {
+public indirect enum StackItem: Hashable, @unchecked Sendable {
     
     static let ANY_VALUE = "Any"
     static let POINTER_VALUE = "Pointer"
@@ -88,7 +88,12 @@ extension StackItem: Codable {
             self = type == StackItem.ARRAY_VALUE ? .array(array) : .struct(array)
         case StackItem.MAP_VALUE:
             let map = try container.decode([[String : StackItem]].self, forKey: .value)
-                .reduce(into: [StackItem : StackItem]()) { $0[$1["key"]!] = $1["value"]! }
+                .reduce(into: [StackItem : StackItem]()) { result, entry in
+                    guard let key = entry["key"], let value = entry["value"] else {
+                        throw NeoError.deserialization("Map stack item entries must contain key and value fields.")
+                    }
+                    result[key] = value
+                }
             self = .map(map)
         case StackItem.INTEROP_INTERFACE_VALUE:
             let id = try container.decode(String.self, forKey: .id)
@@ -162,7 +167,7 @@ extension StackItem {
         case .any(let value): return value as? Bool
         case .boolean(let bool): return bool
         case .integer(let int): return int == 1 ? true : int == 0 ? false : nil
-        case .byteString(_), .buffer(_): return integer! > 0
+        case .byteString(_), .buffer(_): return integer.map { $0 > 0 }
         default: return nil
         }
     }
@@ -172,7 +177,7 @@ extension StackItem {
         case .any(let value): return value as? Int
         case .boolean(let bool): return bool ? 1 : 0
         case .pointer(let int), .integer(let int): return int.asInt()
-        case .byteString(let bytes), .buffer(let bytes): return BInt(magnitude: bytes.reversed()).asInt()!
+        case .byteString(let bytes), .buffer(let bytes): return BInt(magnitude: bytes.reversed()).asInt()
         default: return nil
         }
     }

@@ -25,7 +25,7 @@ public class ScriptReader {
         let reader = BinaryReader(script)
         var s = ""
         while reader.position < script.count {
-            guard let opCode = OpCode(rawValue: reader.readByte()) else {
+            guard let byte = try? reader.readByte(), let opCode = OpCode(rawValue: byte) else {
                 continue
             }
             s += "\(opCode)".uppercased()
@@ -48,12 +48,11 @@ public class ScriptReader {
     
     private static func getPrefixSize(_ reader: BinaryReader, _ size: OpCode.OperandSize) throws -> Int {
         switch size.prefixSize {
-        case 1: return reader.readUnsignedByte()
-        case 2: return Int(reader.readInt16())
-        case 4: return Int(reader.readInt32())
+        case 1: return try reader.readUnsignedByte()
+        case 2: return try Int(reader.readInt16())
+        case 4: return try Int(reader.readInt32())
         default: throw NeoError.unsupportedOperation("Only operand prefix sizes 1, 2, and 4 are supported, but got \(size.prefixSize).")
         }
     }
     
 }
-

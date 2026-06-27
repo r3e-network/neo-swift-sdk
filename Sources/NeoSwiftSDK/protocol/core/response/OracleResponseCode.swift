@@ -1,5 +1,5 @@
 
-public enum OracleResponseCode: ByteEnum {
+public enum OracleResponseCode: ByteEnum, Sendable {
     
     case success, protocolNotSupported, consensusUnreachable, notFound, timeout, forbidden,
          responseTooLarge, insufficientFunds, contentTypeNotSupported, error

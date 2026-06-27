@@ -68,7 +68,7 @@ class NefFileTests: XCTestCase {
     }
     
     public func testDeserializeAndSerialize_ContractWithMethodTokens() throws {
-        let bytes = try Data(contentsOf: TESTCONTRACT_WITH_TOKENS_FILE).bytes
+        let bytes = Bytes(try Data(contentsOf: TESTCONTRACT_WITH_TOKENS_FILE))
         let nef = try NefFile.from(bytes)
         
         XCTAssertEqual(nef.compiler, TESTCONTRACT_COMPILER)
@@ -79,7 +79,7 @@ class NefFileTests: XCTestCase {
     }
     
     public func testDeserializeAndSerialize_ContractWithoutMethodTokens() throws {
-        let bytes = try Data(contentsOf: TESTCONTRACT_FILE).bytes
+        let bytes = Bytes(try Data(contentsOf: TESTCONTRACT_FILE))
         let nef = try NefFile.from(bytes)
         
         XCTAssertEqual(nef.compiler, TESTCONTRACT_COMPILER)
@@ -132,7 +132,7 @@ class NefFileTests: XCTestCase {
     }
     
     public func testGetSize() throws {
-        let bytes = try Data(contentsOf: TESTCONTRACT_FILE).bytes
+        let bytes = Bytes(try Data(contentsOf: TESTCONTRACT_FILE))
         let nef = try NefFile.from(bytes)
         
         XCTAssertEqual(nef.size, bytes.count)

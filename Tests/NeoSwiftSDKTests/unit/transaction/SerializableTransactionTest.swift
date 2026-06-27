@@ -71,7 +71,7 @@ class SerializableTransactionTest: XCTestCase {
         let transaction = try! NeoTransaction.from(data)
         XCTAssertEqual(transaction.version, 0)
         XCTAssertEqual(transaction.nonce, 246070626)
-        XCTAssertEqual(transaction.sender, try! Hash160("969a77db482f74ce27105f760efa139223431394"))
+        XCTAssertEqual(try transaction.getSender(), try! Hash160("969a77db482f74ce27105f760efa139223431394"))
         XCTAssertEqual(transaction.systemFee, 9007810)
         XCTAssertEqual(transaction.networkFee, 1268390)
         XCTAssertEqual(transaction.validUntilBlock, 2106265)
@@ -101,7 +101,7 @@ class SerializableTransactionTest: XCTestCase {
         let transaction = try! NeoTransaction.from(data)
         XCTAssertEqual(transaction.version, 0)
         XCTAssertEqual(transaction.nonce, 246070626)
-        XCTAssertEqual(transaction.sender, try! Hash160("969a77db482f74ce27105f760efa139223431394"))
+        XCTAssertEqual(try transaction.getSender(), try! Hash160("969a77db482f74ce27105f760efa139223431394"))
         XCTAssertEqual(transaction.systemFee, 9007810)
         XCTAssertEqual(transaction.networkFee, 1268390)
         XCTAssertEqual(transaction.validUntilBlock, 2106265)
@@ -126,7 +126,7 @@ class SerializableTransactionTest: XCTestCase {
         let transaction = try! NeoTransaction.from(data)
         XCTAssertEqual(transaction.version, 0)
         XCTAssertEqual(transaction.nonce, 246070626)
-        XCTAssertEqual(transaction.sender, try! Hash160("969a77db482f74ce27105f760efa139223431394"))
+        XCTAssertEqual(try transaction.getSender(), try! Hash160("969a77db482f74ce27105f760efa139223431394"))
         XCTAssertEqual(transaction.systemFee, 9007810)
         XCTAssertEqual(transaction.networkFee, 1268390)
         XCTAssertEqual(transaction.validUntilBlock, 2106265)
@@ -164,6 +164,18 @@ class SerializableTransactionTest: XCTestCase {
                                          systemFee: 10.toPowerOf(8), networkFee: 1, attributes: [],
                                          script: [OpCode.push1.opcode], witnesses: witnesses)
         XCTAssertEqual(tx.size, 76)
+    }
+
+    public func testGetSenderThrowsWithoutSigners() {
+        let tx = NeoTransaction(rpcClient: rpcClient, version: 0, nonce: 0,
+                                validUntilBlock: 0, signers: [],
+                                systemFee: 0, networkFee: 0, attributes: [],
+                                script: [], witnesses: [])
+
+        XCTAssertNil(tx.sender)
+        XCTAssertThrowsError(try tx.getSender()) { error in
+            XCTAssertEqual(error.localizedDescription, "Transaction must have at least one signer to determine sender.")
+        }
     }
     
     public func testFailDeserializingWithTooManyTransactionAttributes() {

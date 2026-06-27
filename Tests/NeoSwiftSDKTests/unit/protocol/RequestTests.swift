@@ -1330,6 +1330,7 @@ class RequestTests: XCTestCase {
     
     public func performRequest<T: Response<U>, U>(_ request: Request<T, U>) {
         let semaphore = DispatchSemaphore(value: 0)
+        nonisolated(unsafe) let request = request
         Task {
             _ = try! await request.send()
             semaphore.signal()

@@ -1,11 +1,11 @@
 
 import BigInt
 
-public enum TransactionAttribute: ByteEnum, CaseIterable {
+public enum TransactionAttribute: ByteEnum, CaseIterable, Sendable {
     
     static let MAX_RESULT_SIZE: Int = 0xffff
     
-    public static var allCases: [TransactionAttribute] = [
+    public static let allCases: [TransactionAttribute] = [
         .highPriority,
         .oracleResponse(0, .error, ""),
         .notValidBefore(0),
@@ -142,25 +142,27 @@ extension TransactionAttribute: NeoSerializable {
     }
     
     public static func deserialize(_ reader: BinaryReader) throws -> TransactionAttribute {
-        guard let type = TransactionAttribute.valueOf(reader.readByte()) else {
+        guard let type = try TransactionAttribute.valueOf(reader.readByte()) else {
             throw NeoError.deserialization("The deserialized type does not match the type information in the serialized data.")
         }
         switch type {
         case .highPriority:
             return .highPriority
         case .oracleResponse:
-            let id = try BInt(magnitude: reader.readBytes(8).reversed()).asInt()!
+            guard let id = try BInt(magnitude: reader.readBytes(8).reversed()).asInt() else {
+                throw NeoError.deserialization("Oracle response id could not be represented as Int.")
+            }
             let code = try OracleResponseCode.throwingValueOf(reader.readByte())
             let result = try reader.readVarBytes(MAX_RESULT_SIZE).base64Encoded
             return .oracleResponse(id, code, result)
         case .notValidBefore:
-            let height = Int(reader.readUInt32())
+            let height = try Int(reader.readUInt32())
             return .notValidBefore(height)
         case .conflicts:
             let hash = try Hash256.deserialize(reader)
             return .conflicts(hash)
         case .notaryAssisted:
-            let nKeys = Int(reader.readByte())
+            let nKeys = try Int(reader.readByte())
             return .notaryAssisted(nKeys)
         }
     }

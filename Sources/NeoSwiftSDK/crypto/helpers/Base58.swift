@@ -12,8 +12,8 @@ public enum Base58 {
     private static let checksumLength = 4
     
     private static let alphabet = Bytes("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".utf8)
-    private static let zero = BInt.ZERO
-    private static let radix = BInt(alphabet.count)
+    private static var zero: BInt { BInt.ZERO }
+    private static var radix: BInt { BInt(alphabet.count) }
     
     /// Encode the given bytes into a Base58Check encoded string.
     /// - Parameter bytes: The bytes to encode.

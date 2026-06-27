@@ -1,7 +1,7 @@
 
 import Foundation
 
-public enum ProtocolError: LocalizedError {
+public enum ProtocolError: LocalizedError, Sendable {
     
     case rpcResponseError(_ error: String)
     case invocationFaultState(_ error: String)

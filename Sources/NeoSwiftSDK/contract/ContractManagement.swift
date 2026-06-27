@@ -12,7 +12,7 @@ public class ContractManagement: SmartContract {
     private static let GET_CONTRACT_HASHES = "getContractHashes"
     private static let HAS_METHOD = "hasMethod"
     private static let DEPLOY = "deploy"
-    public static var SCRIPT_HASH = { try! calcNativeContractHash(NAME) }()
+    public static let SCRIPT_HASH = try! calcNativeContractHash(NAME)
 
     /// Constructs a new ``ContractManagement`` that uses the given ``NeoRpcClient`` instance for invocations.
     /// - Parameter rpcClient: The ``NeoRpcClient`` instance to use for invocations

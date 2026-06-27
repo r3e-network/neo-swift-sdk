@@ -133,7 +133,7 @@ extension Signer: NeoSerializable {
     
     public static func deserialize(_ reader: BinaryReader) throws -> Self {
         let signerHash: Hash160 = try reader.readSerializable()
-        let scopes = WitnessScope.extractCombinedScopes(reader.readByte())
+        let scopes = try WitnessScope.extractCombinedScopes(reader.readByte())
         var allowedContracts: [Hash160] = []
         var allowedGroups: [ECPublicKey] = []
         var rules: [WitnessRule] = []

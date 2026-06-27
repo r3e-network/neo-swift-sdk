@@ -11,15 +11,19 @@ final class SecurityTests: XCTestCase {
         let secureBytes = SecureBytes(sensitiveData)
         
         // Verify data is accessible
-        secureBytes.withUnsafeBytes { buffer in
+        try secureBytes.withUnsafeBytes { buffer in
             XCTAssertEqual(Array(buffer), sensitiveData)
         }
         
         // Verify data can be cleared
         secureBytes.clear()
         
-        // After clearing, accessing should fail
-        // Note: In production, this would throw/crash
+        XCTAssertThrowsError(try secureBytes.withUnsafeBytes { _ in }) { error in
+            XCTAssertEqual(error.localizedDescription, "Attempted to access cleared SecureBytes")
+        }
+        XCTAssertThrowsError(try secureBytes.toArray()) { error in
+            XCTAssertEqual(error.localizedDescription, "Attempted to access cleared SecureBytes")
+        }
     }
     
     func testSecureBytesConstantTimeComparison() throws {
@@ -48,7 +52,7 @@ final class SecurityTests: XCTestCase {
         // Test signing
         let message = "Test message".bytes
         let messageHash = message.sha256()
-        let signature = secureKeyPair.sign(messageHash: messageHash)
+        let signature = try secureKeyPair.sign(messageHash: messageHash)
         
         XCTAssertEqual(signature.count, 2)
         XCTAssertNotEqual(signature[0].asString(radix: 10, uppercase: false), "0")
@@ -160,27 +164,18 @@ final class SecurityTests: XCTestCase {
         expectation.expectedFulfillmentCount = iterations
         
         let data = "Concurrent test data".bytes
-        var results = [Bytes]()
-        let lock = NSLock()
+        let expectedHash = cache.sha256(data)
         
         // Perform concurrent hash operations
         for _ in 0..<iterations {
             DispatchQueue.global().async {
                 let hash = cache.sha256(data)
-                lock.lock()
-                results.append(hash)
-                lock.unlock()
+                XCTAssertEqual(hash, expectedHash)
                 expectation.fulfill()
             }
         }
         
         wait(for: [expectation], timeout: 15.0)
-        
-        // All hashes should be identical
-        let firstHash = results[0]
-        for hash in results {
-            XCTAssertEqual(hash, firstHash)
-        }
     }
     
     // MARK: - Private Key Security Tests

@@ -72,8 +72,10 @@ public class InvocationScript: NeoSerializable, Hashable {
     public func getSignatures() -> [Sign.SignatureData] {
         let reader = BinaryReader(script)
         var sigs: [Sign.SignatureData] = []
-        while reader.available > 0 && reader.readByte() == OpCode.pushData1.opcode {
-            _ = reader.readByte()
+        while let opCode = try? reader.readByte(), opCode == OpCode.pushData1.opcode {
+            guard (try? reader.readByte()) != nil else {
+                break
+            }
             if let signature = try? Sign.SignatureData.fromByteArray(signature: reader.readBytes(NeoConstants.SIGNATURE_SIZE)) {
                 sigs.append(signature)
             }
@@ -82,4 +84,3 @@ public class InvocationScript: NeoSerializable, Hashable {
     }
     
 }
-

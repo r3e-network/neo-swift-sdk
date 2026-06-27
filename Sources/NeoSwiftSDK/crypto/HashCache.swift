@@ -2,18 +2,25 @@ import Foundation
 import CryptoSwift
 
 /// Thread-safe hash cache for repeated cryptographic operations
-public final class HashCache {
+public final class HashCache: @unchecked Sendable {
     
     /// Shared instance for global hash caching
     public static let shared = HashCache()
     
     private let cache = NSCache<NSString, CachedHash>()
     private let queue = DispatchQueue(label: "com.neo-swift-sdk.hashcache", attributes: .concurrent)
+    private var _maxCacheSize: Int = 1000
     
     /// Maximum number of cached hashes (default: 1000)
-    public var maxCacheSize: Int = 1000 {
-        didSet {
-            cache.countLimit = maxCacheSize
+    public var maxCacheSize: Int {
+        get {
+            queue.sync { _maxCacheSize }
+        }
+        set {
+            queue.sync(flags: .barrier) {
+                _maxCacheSize = newValue
+                cache.countLimit = newValue
+            }
         }
     }
     
@@ -29,7 +36,7 @@ public final class HashCache {
     }
     
     public init() {
-        cache.countLimit = maxCacheSize
+        cache.countLimit = _maxCacheSize
         cache.totalCostLimit = 50 * 1024 * 1024 // 50MB limit
     }
     
@@ -98,7 +105,7 @@ public final class HashCache {
     public func removeCached(_ data: Bytes, algorithm: String) {
         let key = cacheKey(for: data, algorithm: algorithm)
         queue.async(flags: .barrier) {
-            self.cache.removeObject(forKey: key)
+            self.cache.removeObject(forKey: key as NSString)
         }
     }
     
@@ -111,23 +118,24 @@ public final class HashCache {
     
     // MARK: - Private Methods
     
-    private func cacheKey(for data: Bytes, algorithm: String) -> NSString {
+    private func cacheKey(for data: Bytes, algorithm: String) -> String {
         // Create a unique key based on algorithm and first/last bytes + length
         // This avoids computing hash of the data for the key itself
         let prefix = data.prefix(8).map { String(format: "%02x", $0) }.joined()
         let suffix = data.suffix(8).map { String(format: "%02x", $0) }.joined()
-        return "\(algorithm):\(data.count):\(prefix):\(suffix)" as NSString
+        return "\(algorithm):\(data.count):\(prefix):\(suffix)"
     }
     
-    private func getCached(key: NSString) -> Bytes? {
+    private func getCached(key: String) -> Bytes? {
+        let nsKey = key as NSString
         return queue.sync {
-            cache.object(forKey: key)?.hash
+            cache.object(forKey: nsKey)?.hash
         }
     }
     
-    private func setCached(key: NSString, hash: Bytes, cost: Int) {
+    private func setCached(key: String, hash: Bytes, cost: Int) {
         queue.async(flags: .barrier) {
-            self.cache.setObject(CachedHash(hash: hash), forKey: key, cost: cost)
+            self.cache.setObject(CachedHash(hash: hash), forKey: key as NSString, cost: cost)
         }
     }
 }

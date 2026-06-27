@@ -20,8 +20,8 @@ public class SecureECKeyPair {
     }
     
     /// Access the private key temporarily for operations
-    private func withPrivateKey<Result>(_ body: (ECPrivateKey) throws -> Result) rethrows -> Result {
-        let privateKey = try! ECPrivateKey(securePrivateKey.toArray())
+    private func withPrivateKey<Result>(_ body: (ECPrivateKey) throws -> Result) throws -> Result {
+        let privateKey = try ECPrivateKey(securePrivateKey.toArray())
         defer {
             // Clear any temporary data
             _privateKey = nil
@@ -41,14 +41,14 @@ public class SecureECKeyPair {
     }
     
     /// Sign a hash with the private key of this key pair.
-    public func sign(messageHash: Bytes) -> [BInt] {
-        let signature: ECDSASignature = signAndGetECDSASignature(messageHash: messageHash)
+    public func sign(messageHash: Bytes) throws -> [BInt] {
+        let signature: ECDSASignature = try signAndGetECDSASignature(messageHash: messageHash)
         return [signature.r, signature.s]
     }
     
     /// Sign a hash with the private key of this key pair.
-    public func signAndGetECDSASignature(messageHash: Bytes) -> ECDSASignature {
-        return withPrivateKey { privateKey in
+    public func signAndGetECDSASignature(messageHash: Bytes) throws -> ECDSASignature {
+        return try withPrivateKey { privateKey in
             ECDSASignature(signature: privateKey.sign(msg: messageHash, deterministic: true))
         }
     }
@@ -82,7 +82,7 @@ public class SecureECKeyPair {
     
     /// Create a legacy ECKeyPair (use only when absolutely necessary)
     public func toLegacyKeyPair() throws -> ECKeyPair {
-        return withPrivateKey { privateKey in
+        return try withPrivateKey { privateKey in
             ECKeyPair(privateKey: privateKey, publicKey: publicKey)
         }
     }
@@ -91,7 +91,7 @@ public class SecureECKeyPair {
 /// Extension to provide migration path from ECKeyPair to SecureECKeyPair
 extension ECKeyPair {
     /// Convert to secure key pair (original private key data remains in memory)
-    public func toSecureKeyPair() -> SecureECKeyPair {
-        return try! SecureECKeyPair.create(privateKey: self.privateKey)
+    public func toSecureKeyPair() throws -> SecureECKeyPair {
+        return try SecureECKeyPair.create(privateKey: self.privateKey)
     }
 }

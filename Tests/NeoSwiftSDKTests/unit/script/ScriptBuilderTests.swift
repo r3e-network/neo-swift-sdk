@@ -16,6 +16,14 @@ class ScriptBuilderTests: XCTestCase {
         _ = try! builder.pushParam(ContractParameter(type: .array, value: [AnyHashable]()))
         assertBuilder([OpCode.newArray0.opcode])
     }
+
+    public func testPushParamRejectsMismatchedValueType() {
+        let parameter = ContractParameter(type: .integer, value: "not an integer")
+
+        XCTAssertThrowsError(try ScriptBuilder().pushParam(parameter)) { error in
+            XCTAssertEqual(error.localizedDescription, "Contract parameter Integer expected Int or BInt, got String.")
+        }
+    }
     
     public func testPushByteArray() {
         _ = builder.pushData(byteArray(1))

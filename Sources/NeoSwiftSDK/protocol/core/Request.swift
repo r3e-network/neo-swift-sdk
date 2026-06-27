@@ -1,7 +1,7 @@
 
 typealias NeoResponse = Response
 
-public struct Request<T, U>: Codable where T: Response<U> {
+public struct Request<T, U>: Codable, @unchecked Sendable where T: Response<U> {
         
     public let jsonrpc = "2.0"
     public let method: String
@@ -28,4 +28,3 @@ public struct Request<T, U>: Codable where T: Response<U> {
     }
     
 }
-

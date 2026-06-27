@@ -169,8 +169,8 @@ public struct NefFile {
             do {
                 let hash: Hash160 = try reader.readSerializable()
                 let method = try reader.readVarString()
-                let parametersCount = Int(reader.readUInt16())
-                let hasReturnValue = reader.readBoolean()
+                let parametersCount = try Int(reader.readUInt16())
+                let hasReturnValue = try reader.readBoolean()
                 let callFlags = try CallFlags.fromValue(reader.readByte())
                 return .init(hash: hash, method: method, parametersCount: parametersCount,
                              hasReturnValue: hasReturnValue, callFlags: callFlags)
@@ -205,7 +205,7 @@ extension NefFile: NeoSerializable {
     }
 
     public static func deserialize(_ reader: BinaryReader) throws -> Self {
-        guard reader.readInt32() == NefFile.MAGIC else {
+        guard try reader.readInt32() == NefFile.MAGIC else {
             throw NeoError.deserialization("Wrong magic number in NEF file.")
         }
         let compilerBytes = try reader.readBytes(NefFile.COMPILER_SIZE)
@@ -214,11 +214,11 @@ extension NefFile: NeoSerializable {
         guard sourceUrl.bytes.count < NefFile.MAX_SOURCE_URL_SIZE else {
             throw NeoError.deserialization("Source URL must not be longer than \(NefFile.MAX_SOURCE_URL_SIZE) bytes.")
         }
-        guard reader.readByte() == 0 else {
+        guard try reader.readByte() == 0 else {
             throw NeoError.deserialization("Reserve bytes in NEF file must be 0.")
         }
         let methodTokens: [MethodToken] = try reader.readSerializableList()
-        guard reader.readUInt16() == 0 else {
+        guard try reader.readUInt16() == 0 else {
             throw NeoError.deserialization("Reserve bytes in NEF file must be 0.")
         }
         let script = try reader.readVarBytes(NefFile.MAX_SCRIPT_LENGTH)

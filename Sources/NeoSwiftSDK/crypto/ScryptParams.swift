@@ -1,7 +1,7 @@
 
 import Foundation
 
-public class ScryptParams: Codable, Hashable {
+public final class ScryptParams: Codable, Hashable, Sendable {
     
     public static let N_STANDARD: Int = 1 << 14
     public static let R_STANDARD: Int = 8

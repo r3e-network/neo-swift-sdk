@@ -1,5 +1,8 @@
 
 import XCTest
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 @testable import NeoSwiftSDK
 
 class HttpServiceTests: XCTestCase {
@@ -43,6 +46,29 @@ class HttpServiceTests: XCTestCase {
         } catch {
             XCTAssert(error.localizedDescription.contains("Invalid response received: \(URLError.Code.badServerResponse.rawValue);"))
         }
+    }
+
+    public func testHTTPStatusError() async {
+        let response = HTTPURLResponse(url: HttpService.DEFAULT_URL, statusCode: 503, httpVersion: nil, headerFields: nil)!
+        let httpService = HttpService(urlSession: MockURLSession().data(Data("node unavailable".utf8)).response(response))
+        let request = Request<Response<NeoBlockCount>, NeoBlockCount>(method: "getblockcount", params: [], service: httpService)
+
+        do {
+            _ = try await httpService.send(request)
+            XCTFail("No exception")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "HTTP 503 Service Unavailable: node unavailable")
+        }
+    }
+
+    public func testRequestTimeoutConfiguration() async throws {
+        let mockSession = MockURLSession().requestInterceptor { request in
+            XCTAssertEqual(request.timeoutInterval, 7)
+        }
+        let httpService = HttpService(urlSession: mockSession, requestTimeout: 7)
+        let request = Request<Response<NeoBlockCount>, NeoBlockCount>(method: "getblockcount", params: [], service: httpService)
+
+        _ = try? await httpService.send(request)
     }
     
     func testRawResponse() async {

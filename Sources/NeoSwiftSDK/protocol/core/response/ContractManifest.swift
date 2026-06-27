@@ -47,7 +47,7 @@ public struct ContractManifest: Codable, Hashable {
             guard pubKey.bytesFromHex.count == NeoConstants.PUBLIC_KEY_SIZE_COMPRESSED else {
                 throw NeoError.illegalArgument("The provided value is not a valid public key: \(pubKey)")
             }
-            guard !signature.base64Decoded.isEmpty else {
+            guard signature.base64Decoded.count == NeoConstants.SIGNATURE_SIZE else {
                 throw NeoError.illegalArgument("Invalid signature: \(signature). Please provide a valid signature in base64 format.")
             }
             self.pubKey = pubKey
@@ -144,5 +144,4 @@ public struct WildcardContainerSerialized: Codable, Hashable {
     }
     
 }
-
 
