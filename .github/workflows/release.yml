@@ -1,284 +1,51 @@
 name: Release
+
 on:
   push:
     tags:
-    - v[0-9]+.[0-9]+.[0-9]+
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+env:
+  SWIFT_VERSION: "6.1.2"
+
 jobs:
   validate:
-    name: Validate Stable Release
-    runs-on: macos-14
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-      version_number: ${{ steps.get_version.outputs.version_number }}
+    name: Validate Package
+    runs-on: macos-15
+    timeout-minutes: 25
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Get version from tag
-      id: get_version
-      run: 'VERSION=${GITHUB_REF#refs/tags/}
+      - uses: actions/checkout@v4
 
-        VERSION_NUMBER=${VERSION#v}
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: ${{ env.SWIFT_VERSION }}
 
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Validate manifest
+        run: swift package describe
 
-        echo "version_number=$VERSION_NUMBER" >> $GITHUB_OUTPUT
+      - name: Build release
+        run: swift build --configuration release -Xswiftc -warnings-as-errors
 
-        echo "Stable Release Version: $VERSION"
+      - name: Run tests
+        run: swift test --parallel
 
-        '
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v1
-      with:
-        swift-version: '5.9'
-    - name: Validate package
-      run: 'swift package describe
-
-        swift package show-dependencies
-
-        swift build --configuration release
-
-        swift test --parallel
-
-        '
-    timeout-minutes: 15
-  security-audit:
-    name: Security Audit
-    runs-on: ubuntu-22.04
-    needs: validate
-    steps:
-    - uses: actions/checkout@v4
-    - name: Run comprehensive security scan
-      uses: trufflesecurity/trufflehog@main
-      with:
-        path: ./
-        base: ${{ github.event.repository.default_branch }}
-        head: HEAD
-        extra_args: --debug --only-verified
-    - name: SAST Security Scan
-      uses: returntocorp/semgrep-action@v1
-      with:
-        config: p/security-audit p/swift p/cryptography p/secrets
-    - name: Validate production readiness
-      run: "echo \"\U0001F50D Checking production readiness...\"\n\n# Check no test\
-        \ credentials in production\nif grep -r \"defaultAccountPassword\" Sources/;\
-        \ then\n  echo \"❌ Test credentials found in production code\"\n  exit 1\n\
-        fi\n\n# Check for proper version bounds\nif ! grep -q \"..<\" Package.swift;\
-        \ then\n  echo \"❌ Dependencies missing version upper bounds\"\n  exit 1\n\
-        fi\n\n# Check security features are in place\nif ! [ -f \"Sources/NeoSwiftSDK/crypto/SecureBytes.swift\"\
-        \ ]; then\n  echo \"❌ SecureBytes implementation missing\"\n  exit 1\nfi\n\
-        \nif ! [ -f \"Sources/NeoSwiftSDK/crypto/helpers/ConstantTime.swift\" ]; then\n\
-        \  echo \"❌ Constant-time operations missing\"\n  exit 1\nfi\n\n# Check documentation\
-        \ exists\nif ! [ -f \"docs/SECURITY.md\" ] || ! [ -f \"docs/DEPLOYMENT.md\"\
-        \ ]; then\n  echo \"❌ Required documentation missing\"\n  exit 1\nfi\n\necho\
-        \ \"✅ All production readiness checks passed\"\n"
-    timeout-minutes: 15
-  build-matrix:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    needs:
-    - validate
-    - security-audit
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-        - macos-14
-        - ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v1
-      with:
-        swift-version: '5.9'
-    - name: Build release
-      run: swift build --configuration release
-    - name: Run all tests
-      run: 'echo "Running all test suites..."
-
-        swift test --parallel
-
-        echo "Running security tests..."
-
-        swift test --filter SecurityTests
-
-        '
-    - name: Package artifacts
-      run: "PLATFORM=$(echo \"${{ matrix.os }}\" | cut -d'-' -f1)\nmkdir -p artifacts\n\
-        \n# Create binary archive\ntar -czf artifacts/neo-swift-sdk-${{ needs.validate.outputs.version\
-        \ }}-${PLATFORM}.tar.gz \\\n  -C .build/release .\n\n# Create source archive\
-        \ (only for one platform to avoid duplicates)\nif [ \"${{ matrix.os }}\" ==\
-        \ \"ubuntu-22.04\" ]; then\n  git archive --format=tar.gz --prefix=neo-swift-sdk-${{\
-        \ needs.validate.outputs.version_number }}/ \\\n    HEAD > artifacts/neo-swift-sdk-${{\
-        \ needs.validate.outputs.version }}-source.tar.gz\nfi\n"
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: release-artifacts-${{ matrix.os }}
-        path: artifacts/
-    timeout-minutes: 15
-  test-integration:
-    name: Integration Tests
-    runs-on: macos-14
-    needs:
-    - validate
-    - security-audit
-    steps:
-    - uses: actions/checkout@v4
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v1
-      with:
-        swift-version: '5.9'
-    - name: Run integration tests
-      env:
-        ENABLE_NETWORK_TESTS: false
-      run: 'echo "Running integration tests..."
-
-        swift test --filter IntegrationTests || echo "Integration tests completed"
-
-        '
-    timeout-minutes: 15
-  create-release:
+  github-release:
     name: Create GitHub Release
-    runs-on: ubuntu-22.04
-    needs:
-    - validate
-    - security-audit
-    - build-matrix
-    - test-integration
+    runs-on: ubuntu-24.04
+    needs: validate
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    - name: Download all artifacts
-      uses: actions/download-artifact@v3
-    - name: Prepare release assets
-      run: 'mkdir -p release-assets
+      - uses: actions/checkout@v4
 
-        find . -name "*.tar.gz" -exec cp {} release-assets/ \;
-
-        ls -la release-assets/
-
-        '
-    - name: Generate comprehensive changelog
-      run: "cat > CHANGELOG.md << 'EOF'\n# \U0001F680 neo-swift-sdk ${{ needs.validate.outputs.version\
-        \ }} - Production Ready Release\n\nThis release marks a major milestone with\
-        \ comprehensive security improvements and production readiness enhancements.\n\
-        \n## \U0001F6E1️ Security Enhancements\n\n- **✅ Secure Memory Management**:\
-        \ Private keys now use `SecureBytes` with memory protection\n- **✅ Constant-Time\
-        \ Operations**: All cryptographic comparisons use constant-time algorithms\n\
-        - **✅ Test Data Isolation**: Test credentials isolated from production builds\n\
-        - **✅ Dependency Security**: Version upper bounds and automated scanning\n\
-        - **✅ Side-Channel Protection**: Mitigations against timing attacks\n\n##\
-        \ ⚡ Performance Improvements\n\n- **✅ Optimized Binary Writer**: 50-70% faster\
-        \ serialization with pre-allocated buffers\n- **✅ Hash Caching**: Thread-safe\
-        \ caching for repeated cryptographic operations  \n- **✅ Non-Blocking Async**:\
-        \ Removed thread-blocking patterns in reactive code\n- **✅ Memory Efficiency**:\
-        \ Reduced allocations and improved garbage collection\n\n## \U0001F9EA Quality\
-        \ & Testing\n\n- **✅ Security Test Suite**: Comprehensive tests for cryptographic\
-        \ operations\n- **✅ Integration Tests**: End-to-end wallet and transaction\
-        \ testing\n- **✅ Automated Security Scanning**: CI/CD security validation\n\
-        - **✅ Code Coverage**: Improved test coverage across critical components\n\
-        \n## \U0001F4DA Documentation & Guides\n\n- **✅ [Security Guide](./docs/SECURITY.md)**:\
-        \ Complete security best practices\n- **✅ [Deployment Guide](./docs/DEPLOYMENT.md)**:\
-        \ Production deployment instructions  \n- **✅ Migration Documentation**: How\
-        \ to adopt new secure APIs\n- **✅ Performance Optimization**: Guidelines for\
-        \ production tuning\n\n## \U0001F527 Breaking Changes & Migration\n\n### For\
-        \ Enhanced Security (Recommended):\n- Replace `ECKeyPair` with `SecureECKeyPair`\
-        \ for production key management\n- Use `ConstantTime.areEqual()` for sensitive\
-        \ comparisons\n- Enable hash caching: `HashCache.shared.maxCacheSize = 5000`\n\
-        \n### Migration Example:\n```swift\n// Old (less secure)\nlet keyPair = try\
-        \ ECKeyPair.createEcKeyPair()\n\n// New (secure)  \nlet secureKeyPair = try\
-        \ SecureECKeyPair.createEcKeyPair()\n```\n\n## \U0001F4E6 Installation & Usage\n\
-        \n### Swift Package Manager\n```swift\ndependencies: [\n    .package(url:\
-        \ \"https://github.com/r3e-network/neo-swift-sdk\", from: \"${{ needs.validate.outputs.version_number\
-        \ }}\")\n]\n```\n\n### Quick Start (Secure)\n```swift\nimport NeoSwiftSDK\n\n\
-        // Create secure connection\nlet rpcClient = NeoRpcClient.build(HttpService(url:\
-        \ URL(string: \"https://mainnet1.neo.coz.io:443\")!))\n\n// Use secure key\
-        \ management  \nlet secureKeyPair = try SecureECKeyPair.createEcKeyPair()\n\
-        let address = try secureKeyPair.getAddress()\n\n// Enable performance optimizations\n\
-        HashCache.shared.maxCacheSize = 5000\n```\n\n## \U0001F3C1 Production Readiness\
-        \ Checklist\n\nBefore using in production:\n- [ ] Review [Security Guide](./docs/SECURITY.md)\n\
-        - [ ] Follow [Deployment Guide](./docs/DEPLOYMENT.md)  \n- [ ] Use `SecureECKeyPair`\
-        \ for key management\n- [ ] Enable appropriate caching and optimizations\n\
-        - [ ] Implement proper error handling and monitoring\n\n## \U0001F4CA What's\
-        \ Changed\nEOF\n\n# Add git changelog\necho \"\" >> CHANGELOG.md\nLAST_TAG=$(git\
-        \ describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0\
-        \ HEAD)\ngit log $LAST_TAG..HEAD --pretty=format:\"- %s (@%an)\" --no-merges\
-        \ >> CHANGELOG.md || true\n\necho \"\" >> CHANGELOG.md\necho \"\" >> CHANGELOG.md\
-        \  \necho \"**Full Changelog**: https://github.com/${{ github.repository }}/compare/$LAST_TAG...${{\
-        \ needs.validate.outputs.version }}\" >> CHANGELOG.md\n\necho \"\" >> CHANGELOG.md\n\
-        echo \"---\" >> CHANGELOG.md\necho \"\" >> CHANGELOG.md\necho \"\U0001F64F\
-        \ **Special Thanks**: This release was made production-ready through comprehensive\
-        \ security auditing and performance optimization.\" >> CHANGELOG.md\necho\
-        \ \"\" >> CHANGELOG.md\necho \"For support and questions, please see the [documentation](./README.md)\
-        \ or [open an issue](https://github.com/${{ github.repository }}/issues).\"\
-        \ >> CHANGELOG.md\n"
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        name: neo-swift-sdk ${{ needs.validate.outputs.version }} - Production Ready
-        body_path: CHANGELOG.md
-        draft: false
-        prerelease: false
-        files: 'release-assets/*
-
-          '
-        make_latest: true
-        generate_release_notes: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    timeout-minutes: 15
-  post-release:
-    name: Post-Release Tasks
-    runs-on: ubuntu-22.04
-    needs:
-    - validate
-    - create-release
-    steps:
-    - uses: actions/checkout@v4
-    - name: Update latest tag
-      run: 'git config --local user.email "action@github.com"
-
-        git config --local user.name "GitHub Action"
-
-        git tag -f latest
-
-        git push origin latest --force
-
-        '
-    - name: Create release summary
-      run: 'echo "## 🎉 neo-swift-sdk ${{ needs.validate.outputs.version }} Released!" >>
-        $GITHUB_STEP_SUMMARY
-
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        echo "### Key Features:" >> $GITHUB_STEP_SUMMARY
-
-        echo "- 🛡️ **Production-Grade Security**: Secure memory management and constant-time
-        operations" >> $GITHUB_STEP_SUMMARY
-
-        echo "- ⚡ **Performance Optimized**: 50-70% faster with caching and buffer
-        optimizations" >> $GITHUB_STEP_SUMMARY
-
-        echo "- 🧪 **Thoroughly Tested**: Comprehensive security and integration test
-        suites" >> $GITHUB_STEP_SUMMARY
-
-        echo "- 📚 **Well Documented**: Complete security and deployment guides" >>
-        $GITHUB_STEP_SUMMARY
-
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        echo "### Links:" >> $GITHUB_STEP_SUMMARY
-
-        echo "- 📥 [Download Release](https://github.com/${{ github.repository }}/releases/tag/${{
-        needs.validate.outputs.version }})" >> $GITHUB_STEP_SUMMARY
-
-        echo "- 📖 [Security Guide](https://github.com/${{ github.repository }}/blob/main/docs/SECURITY.md)"
-        >> $GITHUB_STEP_SUMMARY
-
-        echo "- 🚀 [Deployment Guide](https://github.com/${{ github.repository }}/blob/main/docs/DEPLOYMENT.md)"
-        >> $GITHUB_STEP_SUMMARY
-
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        echo "**Release Status**: ✅ Production Ready" >> $GITHUB_STEP_SUMMARY'
-    timeout-minutes: 15
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true

@@ -1,69 +1,47 @@
-# This workflow will build a Swift project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
-
 name: Build and Test
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+env:
+  SWIFT_VERSION: "6.1.2"
 
 jobs:
-  build:
-    name: Build and Test on ${{ matrix.os }}
+  test:
+    name: Swift ${{ env.SWIFT_VERSION }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14]
-        swift: ["5.9"]
-        
+        os: [macos-15, ubuntu-24.04]
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Swift ${{ matrix.swift }}
-      uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: ${{ matrix.swift }}
-    
-    - name: Get swift version
-      run: swift --version
-    
-    - name: Cache Swift packages
-      uses: actions/cache@v3
-      with:
-        path: .build
-        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
-        restore-keys: |
-          ${{ runner.os }}-spm-
-    
-    - name: Resolve dependencies
-      run: swift package resolve
-    
-    - name: Build
-      run: swift build -v --configuration debug
-    
-    - name: Build Release
-      run: swift build -v --configuration release
-    
-    - name: Run tests
-      run: swift test -v --parallel
-    
-    - name: Run specific test suites
-      run: |
-        echo "Running security tests..."
-        swift test --filter SecurityTests
-        echo "Running crypto tests..."
-        swift test --filter CryptoTests || true
-        echo "Running wallet tests..."
-        swift test --filter WalletTests || true
-    
-    - name: Test Summary
-      if: always()
-      run: |
-        echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- Platform: ${{ matrix.os }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Swift Version: ${{ matrix.swift }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Build Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v4
+
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: ${{ env.SWIFT_VERSION }}
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            .swiftpm
+          key: ${{ runner.os }}-swift-${{ env.SWIFT_VERSION }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swift-${{ env.SWIFT_VERSION }}-
+
+      - name: Resolve dependencies
+        run: swift package resolve
+
+      - name: Build
+        run: swift build -Xswiftc -warnings-as-errors
+
+      - name: Test
+        run: swift test --parallel

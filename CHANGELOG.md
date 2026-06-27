@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-06-28
+
+### Changed
+- `BinaryReader` primitive and varint reads now throw deserialization errors on truncated input instead of trapping on out-of-bounds array access.
+- `SecureBytes` accessors now throw after secure memory is cleared instead of aborting the process.
+- `NeoTransaction.sender` is now optional, with `getSender()` for workflows that require a sender.
+- HTTP transport now applies a configurable request timeout and rejects non-2xx HTTP responses before JSON-RPC decoding.
+
+### Fixed
+- Fixed `ContractParameter.integer(BInt)` JSON encoding and large integer decoding.
+- Fixed `ScriptBuilder.pushParam` parameter payload validation so mismatched internal values throw typed SDK errors instead of force-casting.
+- Fixed malformed map decoding in contract parameters and stack items so missing keys or values throw deserialization errors.
+- Fixed Swift 6 warning blockers for retroactive conformances, raw-response decoding, and hash-cache concurrency.
+
+### Removed
+- Removed tracked local orchestration databases, C# port artifacts, orphaned Neo C# gitlinks, and generated release-summary files from the Swift SDK package.
+
 ## [3.0.0] - 2026-06-28
 
 ### Added

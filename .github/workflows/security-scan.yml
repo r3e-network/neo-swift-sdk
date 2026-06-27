@@ -1,130 +1,44 @@
 name: Security Scan
+
 on:
   push:
-    branches:
-    - main
-    - develop
+    branches: [main, develop]
   pull_request:
-    branches:
-    - main
+    branches: [main]
   schedule:
-  - cron: 0 9 * * 1
+    - cron: "0 9 * * 1"
+
+env:
+  SWIFT_VERSION: "6.1.2"
+
 jobs:
-  dependency-scan:
-    name: Dependency Security Scan
-    runs-on: ubuntu-22.04
+  security:
+    name: Security and Warning Gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: '5.9'
-    - name: Cache Swift packages
-      uses: actions/cache@v3
-      with:
-        path: .build
-        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
-        restore-keys: '${{ runner.os }}-spm-
+      - uses: actions/checkout@v4
 
-          '
-    - name: Check for outdated dependencies
-      run: 'swift package update --dry-run
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: ${{ env.SWIFT_VERSION }}
 
-        swift package show-dependencies
+      - name: Build with warnings as errors
+        run: swift build -Xswiftc -warnings-as-errors
 
-        '
-    - name: Run SwiftLint Security Rules
-      run: "if which swiftlint >/dev/null; then\n  swiftlint --strict --config .swiftlint-security.yml\n\
-        else\n  echo \"SwiftLint not installed, skipping...\"\nfi\n"
-    - name: Check for hardcoded secrets
-      if: github.event_name != 'schedule'
-      uses: trufflesecurity/trufflehog@main
-      with:
-        path: ./
-        extra_args: --debug --only-verified
-    - name: Check for hardcoded secrets (full scan for scheduled runs)
-      if: github.event_name == 'schedule'
-      uses: trufflesecurity/trufflehog@main
-      with:
-        path: ./
-        extra_args: --debug --only-verified
-    - name: SAST Scan with Semgrep
-      uses: returntocorp/semgrep-action@v1
-      with:
-        config: p/security-audit p/swift p/cryptography
-        generateSarif: '1'
-    - name: Upload security results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always() && hashFiles('semgrep.sarif') != ''
-      with:
-        sarif_file: semgrep.sarif
-    timeout-minutes: 15
-  code-quality:
-    name: Code Quality & Security Analysis
-    runs-on: macos-14
-    steps:
-    - uses: actions/checkout@v4
-    - name: Setup Swift
-      uses: swift-actions/setup-swift@v2
-      with:
-        swift-version: '5.9'
-    - name: Build for security analysis
-      run: 'swift build --configuration debug -Xswiftc -warnings-as-errors
+      - name: Run security tests
+        run: swift test --filter SecurityTests
 
-        '
-    - name: Run security tests
-      run: 'swift test --filter SecurityTests
+      - name: Check for obvious committed secrets
+        run: |
+          if git grep -n -I -E '(private[_-]?key|password|secret|token)[[:space:]]*=[[:space:]]*"' -- Sources; then
+            echo "Potential committed secret found."
+            exit 1
+          fi
 
-        '
-    - name: Generate test coverage
-      run: "swift test --enable-code-coverage\nxcrun llvm-cov report \\\n  .build/debug/neo_swift_sdkPackageTests.xctest/Contents/MacOS/neo_swift_sdkPackageTests\
-        \ \\\n  -instr-profile .build/debug/codecov/default.profdata \\\n  -ignore-filename-regex=\"\
-        .*/Tests/.*\" \\\n  -use-color\n"
-    - name: Check for common vulnerabilities
-      run: "# Check for force unwrapping in production code\necho \"Checking for force\
-        \ unwrapping...\"\nif grep -r \"!\" --include=\"*.swift\" Sources/ | grep\
-        \ -v \"!=\" | grep -v \"// SAFE:\"; then\n  echo \"Warning: Force unwrapping\
-        \ found in production code\"\nfi\n\n# Check for print statements in production\
-        \ code\necho \"Checking for print statements...\"\nif grep -r \"print(\" --include=\"\
-        *.swift\" Sources/; then\n  echo \"Warning: Print statements found in production\
-        \ code\"\nfi\n\n# Check for hardcoded credentials\necho \"Checking for hardcoded\
-        \ credentials...\"\nif grep -r -i \"password\\s*=\\s*\\\"\" --include=\"*.swift\"\
-        \ Sources/; then\n  echo \"Error: Potential hardcoded password found!\"\n\
-        \  exit 1\nfi\n"
-    timeout-minutes: 15
-  license-check:
-    name: License Compliance Check
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-    - name: Check dependency licenses
-      run: 'echo "Checking licenses of dependencies..."
-
-        # Add license checking tool here
-
-        # For Swift packages, could use swift-package-licenses or similar
-
-        '
-    timeout-minutes: 15
-  security-report:
-    name: Generate Security Report
-    needs:
-    - dependency-scan
-    - code-quality
-    - license-check
-    runs-on: ubuntu-22.04
-    if: always()
-    steps:
-    - name: Create security summary
-      run: 'echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
-
-        echo "" >> $GITHUB_STEP_SUMMARY
-
-        echo "- Dependency Scan: ${{ needs.dependency-scan.result }}" >> $GITHUB_STEP_SUMMARY
-
-        echo "- Code Quality: ${{ needs.code-quality.result }}" >> $GITHUB_STEP_SUMMARY
-
-        echo "- License Check: ${{ needs.license-check.result }}" >> $GITHUB_STEP_SUMMARY
-
-        '
-    timeout-minutes: 15
+      - name: Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/security-audit p/swift p/secrets

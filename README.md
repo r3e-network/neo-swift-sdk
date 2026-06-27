@@ -1,11 +1,11 @@
 # neo-swift-sdk
 
-[![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-blue.svg)](https://swift.org)
+[![Swift 6.1+](https://img.shields.io/badge/Swift-6.1+-blue.svg)](https://swift.org)
 [![Platforms](https://img.shields.io/badge/Platforms-iOS%20|%20macOS%20|%20tvOS%20|%20watchOS-green.svg)](https://github.com/r3e-network/neo-swift-sdk)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Security](https://img.shields.io/badge/Security-Production%20Ready-brightgreen.svg)](docs/SECURITY.md)
 
-`neo-swift-sdk` is a Swift SDK for Neo N3 applications. It targets Neo N3 v3.10.0 RPC, exposes an AWS SDK-style operation client for application code, and keeps a lower-level JSON-RPC request builder for advanced workflows.
+`neo-swift-sdk` is a Swift 6 SDK for Neo N3 applications. It targets Neo N3 v3.10.0 RPC, exposes an AWS SDK-style operation client for application code, and keeps a lower-level JSON-RPC request builder for advanced workflows.
 
 ## Features
 
@@ -22,7 +22,7 @@ Add the package to `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/r3e-network/neo-swift-sdk", from: "3.0.0")
+    .package(url: "https://github.com/r3e-network/neo-swift-sdk", from: "3.0.1")
 ]
 ```
 
