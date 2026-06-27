@@ -1,5 +1,5 @@
 name: Release
-true:
+on:
   push:
     tags:
     - v[0-9]+.[0-9]+.[0-9]+
@@ -63,9 +63,9 @@ jobs:
         \ then\n  echo \"❌ Test credentials found in production code\"\n  exit 1\n\
         fi\n\n# Check for proper version bounds\nif ! grep -q \"..<\" Package.swift;\
         \ then\n  echo \"❌ Dependencies missing version upper bounds\"\n  exit 1\n\
-        fi\n\n# Check security features are in place\nif ! [ -f \"Sources/NeoSwift/crypto/SecureBytes.swift\"\
+        fi\n\n# Check security features are in place\nif ! [ -f \"Sources/NeoSwiftSDK/crypto/SecureBytes.swift\"\
         \ ]; then\n  echo \"❌ SecureBytes implementation missing\"\n  exit 1\nfi\n\
-        \nif ! [ -f \"Sources/NeoSwift/crypto/helpers/ConstantTime.swift\" ]; then\n\
+        \nif ! [ -f \"Sources/NeoSwiftSDK/crypto/helpers/ConstantTime.swift\" ]; then\n\
         \  echo \"❌ Constant-time operations missing\"\n  exit 1\nfi\n\n# Check documentation\
         \ exists\nif ! [ -f \"docs/SECURITY.md\" ] || ! [ -f \"docs/DEPLOYMENT.md\"\
         \ ]; then\n  echo \"❌ Required documentation missing\"\n  exit 1\nfi\n\necho\
@@ -103,11 +103,11 @@ jobs:
         '
     - name: Package artifacts
       run: "PLATFORM=$(echo \"${{ matrix.os }}\" | cut -d'-' -f1)\nmkdir -p artifacts\n\
-        \n# Create binary archive\ntar -czf artifacts/neoswift-${{ needs.validate.outputs.version\
+        \n# Create binary archive\ntar -czf artifacts/neo-swift-sdk-${{ needs.validate.outputs.version\
         \ }}-${PLATFORM}.tar.gz \\\n  -C .build/release .\n\n# Create source archive\
         \ (only for one platform to avoid duplicates)\nif [ \"${{ matrix.os }}\" ==\
-        \ \"ubuntu-22.04\" ]; then\n  git archive --format=tar.gz --prefix=neoswift-${{\
-        \ needs.validate.outputs.version_number }}/ \\\n    HEAD > artifacts/neoswift-${{\
+        \ \"ubuntu-22.04\" ]; then\n  git archive --format=tar.gz --prefix=neo-swift-sdk-${{\
+        \ needs.validate.outputs.version_number }}/ \\\n    HEAD > artifacts/neo-swift-sdk-${{\
         \ needs.validate.outputs.version }}-source.tar.gz\nfi\n"
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
@@ -159,7 +159,7 @@ jobs:
 
         '
     - name: Generate comprehensive changelog
-      run: "cat > CHANGELOG.md << 'EOF'\n# \U0001F680 NeoSwift ${{ needs.validate.outputs.version\
+      run: "cat > CHANGELOG.md << 'EOF'\n# \U0001F680 neo-swift-sdk ${{ needs.validate.outputs.version\
         \ }} - Production Ready Release\n\nThis release marks a major milestone with\
         \ comprehensive security improvements and production readiness enhancements.\n\
         \n## \U0001F6E1️ Security Enhancements\n\n- **✅ Secure Memory Management**:\
@@ -189,9 +189,9 @@ jobs:
         \ ECKeyPair.createEcKeyPair()\n\n// New (secure)  \nlet secureKeyPair = try\
         \ SecureECKeyPair.createEcKeyPair()\n```\n\n## \U0001F4E6 Installation & Usage\n\
         \n### Swift Package Manager\n```swift\ndependencies: [\n    .package(url:\
-        \ \"https://github.com/crisogray/NeoSwift\", from: \"${{ needs.validate.outputs.version_number\
-        \ }}\")\n]\n```\n\n### Quick Start (Secure)\n```swift\nimport NeoSwift\n\n\
-        // Create secure connection\nlet neoSwift = NeoSwift.build(HttpService(url:\
+        \ \"https://github.com/r3e-network/neo-swift-sdk\", from: \"${{ needs.validate.outputs.version_number\
+        \ }}\")\n]\n```\n\n### Quick Start (Secure)\n```swift\nimport NeoSwiftSDK\n\n\
+        // Create secure connection\nlet rpcClient = NeoRpcClient.build(HttpService(url:\
         \ URL(string: \"https://mainnet1.neo.coz.io:443\")!))\n\n// Use secure key\
         \ management  \nlet secureKeyPair = try SecureECKeyPair.createEcKeyPair()\n\
         let address = try secureKeyPair.getAddress()\n\n// Enable performance optimizations\n\
@@ -215,7 +215,7 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        name: NeoSwift ${{ needs.validate.outputs.version }} - Production Ready
+        name: neo-swift-sdk ${{ needs.validate.outputs.version }} - Production Ready
         body_path: CHANGELOG.md
         draft: false
         prerelease: false
@@ -246,7 +246,7 @@ jobs:
 
         '
     - name: Create release summary
-      run: 'echo "## 🎉 NeoSwift ${{ needs.validate.outputs.version }} Released!" >>
+      run: 'echo "## 🎉 neo-swift-sdk ${{ needs.validate.outputs.version }} Released!" >>
         $GITHUB_STEP_SUMMARY
 
         echo "" >> $GITHUB_STEP_SUMMARY

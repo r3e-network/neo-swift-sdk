@@ -1,462 +1,182 @@
-
-# NeoSwift 🛡️
+# neo-swift-sdk
 
 [![Swift 5.9+](https://img.shields.io/badge/Swift-5.9+-blue.svg)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-iOS%20|%20macOS%20|%20tvOS%20|%20watchOS-green.svg)](https://github.com/r3e-network/NeoSwift)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/crisogray/NeoSwift/blob/main/LICENSE)
+[![Platforms](https://img.shields.io/badge/Platforms-iOS%20|%20macOS%20|%20tvOS%20|%20watchOS-green.svg)](https://github.com/r3e-network/neo-swift-sdk)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Security](https://img.shields.io/badge/Security-Production%20Ready-brightgreen.svg)](docs/SECURITY.md)
 
-NeoSwift is a **production-ready, security-first** Swift SDK for interacting with the Neo blockchain from iOS and Mac devices. It maintains the same interface as the established Java/Android SDK [neow3j](https://github.com/neow3j/neow3j) while providing enhanced security features and performance optimizations. Compatible with Neo N3 v3.9.1 RPC. Maintained by [r3e-network](https://github.com/r3e-network).
+`neo-swift-sdk` is a Swift SDK for Neo N3 applications. It targets Neo N3 v3.10.0 RPC, exposes an AWS SDK-style operation client for application code, and keeps a lower-level JSON-RPC request builder for advanced workflows.
 
-## ✨ Key Features
+## Features
 
-- 🛡️ **Production-Grade Security**: Secure memory management and constant-time operations
-- ⚡ **High Performance**: Optimized serialization and hash caching  
-- 🧪 **Thoroughly Tested**: Comprehensive security and integration test suites
-- 📱 **Multi-Platform**: iOS 13+, macOS 10.15+, tvOS 13+, watchOS 6+
-- 🔄 **neow3j Compatible**: Familiar API for Java developers
-- ✅ **Neo N3 v3.9.1 RPC**: Coverage for current node methods and responses
+- `NeoClient`: typed operation facade with input and output models.
+- `NeoRpcClient`: lower-level JSON-RPC request builder for full node, wallet, token, state-service, and plugin RPCs.
+- Neo N3 v3.10.0 support for `getversion`, `signmsg`, `verifymsg`, `sign`, `relay`, and DeferredRelay RPCs.
+- Secure key utilities including `SecureBytes`, `SecureECKeyPair`, NEP-2, WIF, and constant-time helpers.
+- Transaction, witness, wallet, contract, NEP-11, NEP-17, NNS, and binary serialization support.
+- Combine publishers for block polling and replay.
 
-## 📦 Installation
+## Installation
 
-### Swift Package Manager (Recommended)
+Add the package to `Package.swift`:
 
-Add to your `Package.swift`:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/r3e-network/NeoSwift", from: "2.2.0")
+    .package(url: "https://github.com/r3e-network/neo-swift-sdk", from: "3.0.0")
 ]
 ```
 
-Or add via Xcode: File → Add Package Dependencies → `https://github.com/crisogray/NeoSwift`
-
-## 🚀 Quick Start (Secure)
+Then add the product to your target:
 
 ```swift
-import NeoSwift
+.product(name: "NeoSwiftSDK", package: "neo-swift-sdk")
+```
 
-// 1. Create secure connection to Neo network
-let url = URL(string: "https://mainnet1.neo.coz.io:443")!
-let neoSwift = NeoSwift.build(HttpService(url: url))
+Import the module:
 
-// 2. Use secure key management
-let secureKeyPair = try SecureECKeyPair.createEcKeyPair()
-let address = try secureKeyPair.getAddress()
+```swift
+import NeoSwiftSDK
+```
 
-// 3. Enable performance optimizations
-HashCache.shared.maxCacheSize = 5000
+## Quick Start
 
-// 4. Build and sign transactions securely
+Use `NeoClient` for application code. Operations accept typed input structs and return typed output structs.
+
+```swift
+import Foundation
+import NeoSwiftSDK
+
+let client = NeoClient(endpoint: URL(string: "https://mainnet1.neo.coz.io:443")!)
+
+let blockCount = try await client.getBlockCount().count
+let latestHash = try await client
+    .getBlockHash(input: .init(blockIndex: blockCount - 1))
+    .blockHash
+
+let version = try await client.getVersion().version
+print(latestHash.string)
+print(version.userAgent)
+```
+
+## Raw JSON-RPC
+
+Use `NeoRpcClient` when you need request-level access or an RPC that has not been promoted to the operation facade yet.
+
+```swift
+import Foundation
+import NeoSwiftSDK
+
+let endpoint = URL(string: "http://localhost:40332")!
+let rpcClient = NeoRpcClient.build(
+    HttpService(url: endpoint),
+    NeoRpcClientConfiguration(networkMagic: 769)
+)
+
+let response = try await rpcClient.getBestBlockHash().send()
+let bestBlockHash = try response.getResult()
+```
+
+## Transactions
+
+Build, sign, and relay transactions with the transaction builder.
+
+```swift
+let account = try Account.fromWIF("<wif>")
+
 let script = try ScriptBuilder()
     .contractCall(NeoToken.SCRIPT_HASH, method: "symbol", params: [])
     .toArray()
 
-let transaction = try await TransactionBuilder(neoSwift)
+let transaction = try await TransactionBuilder(rpcClient)
     .script(script)
     .signers(AccountSigner.calledByEntry(account))
     .sign()
 
-let response = try await transaction.send()
+let relayResult = try await transaction.send().getResult()
+print(relayResult.hash.string)
 ```
 
-### 🛡️ Security First
+For multi-signature flows, export a contract-parameters context, sign it through a v3.10.0 node wallet, and relay the completed context:
 
-For production applications, always:
-- Use `SecureECKeyPair` instead of `ECKeyPair` for private key management
-- Store encrypted keys with NEP-2: `try NEP2.encrypt(password, keyPair)`
-- Validate all transaction details before signing
-- Follow the [Security Guide](docs/SECURITY.md) and [Deployment Guide](docs/DEPLOYMENT.md)
-
-## 📖 Usage
-The NeoSwift library is designed to be used almost identically to the neow3j Java package on which it's based. There are of course syntactic differences between the two packages, with the Swift code examples below showing the syntax for each corresponding part of the [neow3j dApp Development documentation](https://neow3j.io/#/neo-n3/dapp_development/introduction).
-### Interacting with a Neo Node
-[neow3j docs](https://neow3j.io/#/neo-n3/dapp_development/interacting_with_a_node)
-#### Setting up a Connection
-Instantiating a `NeoSwift` object.
 ```swift
-let url = URL(string: "http://localhost:40332")!
-let neoSwift = NeoSwift.build(HttpService(url: url))
-```
-Instantiating a `NeoSwift` object with a config.
-```swift
-let url = URL(string: "http://localhost:40332")!
-let neoSwift = NeoSwift.build(HttpService(url: url), NeoSwiftConfig(networkMagic: 769))
-```
-#### Monitoring the Blockchain
-Getting all blocks starting at block index 100 and subscribing to any newly generated blocks.
-```swift
-neoSwift.catchUpToLatestAndSubscribeToNewBlocksPublisher(100, true)
-    .sink(receiveCompletion: { print("Completion: \($0)") }) { blockReqResult in
-        if let block = blockReqResult.block {
-            print(block.index)
-            print(block.hash)
-            print(block.confirmations)
-            print(block.transactions ?? "No transactions")
-        }
-    }.store(in: &cancellables)
-```
-Just subscribing to latest blocks.
-```swift
-neoSwift.subscribeToNewBlocksPublisher(true)
-    .sink(receiveCompletion: { print("Completion: \($0)") }) { blockReqResult in
-        if let block = blockReqResult.block {
-            print(block.index)
-            print(block.hash)
-            print(block.confirmations)
-            print(block.transactions ?? "No transactions")
-        }
-    }.store(in: &cancellables)
-```
-#### Inspecting a Transaction
-Checking the state of a single transaction.
-```swift
-let txHash = try Hash256("da5a53a79ac399e07c6eea366c192a4942fa930d6903ffc10b497f834a538fee")
-let response = try await neoSwift.getTransaction(txHash).send()
-if let error = response.error {
-    throw error
-}
-let tx = response.transaction
-```
-Getting a raw transaction's raw byte array (as a base64 string).
-```swift
-let response = try await neoSwift.getRawTransaction(txHash).send()
-let tx = response.rawTransaction
-```
-Getting results of an invoation using `getApplicationLog`.
-```swift
-let txHash = try Hash256("da5a53a79ac399e07c6eea366c192a4942fa930d6903ffc10b497f834a538fee")
-let response = try await neoSwift.getApplicationLog(txHash).send()
-if let error = response.error {
-    throw error
-}
-// Get the first execution. Usually there is only one execution.
-if let execution = response.applicationLog?.executions.first {
-    // Check if the execution ended in a NeoVM state FAULT.
-    if execution.state == .fault {
-        // Invocation Failed
-    }
-    // Get the result stack.
-    let stack = execution.stack
-    let returnValue = stack.first
-      
-    // Get the notifications fired by the transaction.
-    let notifications = execution.notification
-}
-```
-#### Using a Wallet on the Node
-Opening the wallet
-```swift
-let response = try await neoSwift.openWallet("/path/to/wallet.json", "walletPassword").send()
-if let error = response.error {
-    throw error
-}
-if let opened = response.openWallet, opened {
-    // Successfully opened wallet.
-} else {
-    // Wallet not opened.
-}
-```
-Listing the accounts in the wallet.
-```swift
-let response = try await neoSwift.listAddress().send()
-if let error = response.error {
-    throw error
-}
-let listOfAddresses = response.addresses
-```
-Checking the wallet's balances.
-```swift
-let response = try await neoSwift.getWalletBalance(NeoToken.SCRIPT_HASH).send()
-if let error = response.error {
-    throw error
-}
-let balance = response.walletBalance?.balance
-```
-Closing the wallet.
-```swift
-let response = try await neoSwift.closeWallet().send()
-```
-#### Neo-Express
-Instantiating a `NeoSwiftExpress` object.
-```swift
-let url = URL(string: "http://localhost:40332")!
-let neoSwiftExpress = NeoSwiftExpress.build(HttpService(url: url))
-```
----
-### Wallets and Accounts
-[neow3j docs](https://neow3j.io/#/neo-n3/dapp_development/wallets_and_accounts)
-#### Wallets
-Creating a wallet.
-```swift
-let wallet = try Wallet.create()
-```
-Reading a wallet from an NEP-6 file and renaming.
-```swift
-let wallet = try Wallet.fromNEP6Wallet(url).name("NewName")
-```
-Creating a wallet from an account and updating name and version.
-```swift
-let wallet = try Wallet.withAccounts([Account.create()])
-    .name("MyWallet")
-    .version("1.0")
-```
-#### Accounts
-Creating an account from a WIF and changing the label.
-```swift
-let account = try Account.fromWIF("L3kCZj6QbFPwbsVhxnB8nUERDy4mhCSrWJew4u5Qh5QmGMfnCTda")
-    .label("MyAccount")
-```
-#### Multi-sig Accounts
-Creating a multi-sig account from an array of public keys, with a signature threshold of 2.
-```swift
-let publicKeys = try [
-    ECKeyPair.createEcKeyPair().publicKey,
-    ECKeyPair.createEcKeyPair().publicKey,
-    ECKeyPair.createEcKeyPair().publicKey
-]
-let account = try Account.createMultiSigAccount(publicKeys, 2)
-```
-#### Account Balances
-Checking balances of an account.
-```swift
-let account = try Account.fromWIF("L3kCZj6QbFPwbsVhxnB8nUERDy4mhCSrWJew4u5Qh5QmGMfnCTda")
-
-let url = URL(string: "http://localhost:40332"))!
-let neoSwift = NeoSwift.build(HttpService(url: url))
-let balances = try await account.getNep17Balances(neoSwift)
-```
-
----
-### Transactions
-[neow3j docs](https://neow3j.io/#/neo-n3/dapp_development/transactions)
-#### Building Transactions
-Instantiating a `TransactionBuilder` object.
-```swift
-let url = URL(string: "http://localhost:40332")!
-let neoSwift = NeoSwift.build(HttpService(url: url))
-let builder = TransactionBuilder(neoSwift)
-```
-Adding a preconfigured script byte array to the builder.
-```swift
-builder.script(script)
-```
-Example of building, signing and sending a transaction.
-```swift
-let url = URL(string: mainnet)!
-let neoSwift = NeoSwift.build(HttpService(url: url))
-let account = try Account.fromWIF("L3kCZj6QbFPwbsVhxnB8nUERDy4mhCSrWJew4u5Qh5QmGMfnCTda")
-            
-let script = try ScriptBuilder()
-    .contractCall(NeoToken.SCRIPT_HASH, method: "symbol", params: [])
-    .toArray()
-            
-let tx = try await TransactionBuilder(neoSwift)
+let unsigned = try await TransactionBuilder(rpcClient)
     .script(script)
     .signers(AccountSigner.calledByEntry(account))
-    .sign()
-            
-let response = try await tx.send()
+    .getUnsignedTransaction()
+
+let context = try await unsigned.toContractParametersContext()
+let signed = try await client.sign(input: .init(context: context)).context
+let relayed = try await client.relay(input: .init(context: signed)).hash
 ```
-#### Signing Transactions
-Manually signing an unsigned transaction
-```swift
-let tx = try await builder.getUnsignedTransaction()
-let account = try Account.fromWIF("L3kCZj6QbFPwbsVhxnB8nUERDy4mhCSrWJew4u5Qh5QmGMfnCTda")
-let keyPair = account.keyPair!
-let txBytes = try await tx.getHashData()
-let witness = try Witness.create(txBytes, keyPair)
-let response = try await tx.addWitness(witness).send()
-```
-#### Tracking Transactions
-Tracking a transaction and receiving the index of the block in which it's contained.
-```swift
-try tx.track().sink(receiveCompletion: { print("Completion: \($0)") }) { blockIndex in
-    print("Transaction contained in block \(blockIndex).")
-}.store(in: &cancellables)
-```
-#### Adding Additional Network Fees
-Adding an additional network fee to a transaction.
-```swift
-let tx = try await TransactionBuilder(neoSwift)
-    .script(script)
-    .signers(AccountSigner.calledByEntry(account))
-    .additionalNetworkFee(1_000_000)
-    .sign()
-```
----
-### Smart Contracts 
-[neow3j docs](https://neow3j.io/#/neo-n3/dapp_development/smart_contracts)
-#### Contract Parameters
-Constructing a contract parameter representing a `bongo` instance (re [neow3j example](https://neow3j.io/#/neo-n3/dapp_development/smart_contracts?id=contract-parameters)).
-```swift
-let contractParameter = try ContractParameter.array(["C2", "C5"])
-```
-#### Contract Invocation
-Creating a `SmartContract` object with a `NeoSwift` instance.
+
+## Contracts
+
+Contract wrappers use `NeoRpcClient` for request-level access.
+
 ```swift
 let scriptHash = try Hash160("0x1a70eac53f5882e40dd90f55463cce31a9f72cd4")
-let smartContract = SmartContract(scriptHash: scriptHash, neoSwift: neoSwift)
+let contract = SmartContract(scriptHash: scriptHash, rpcClient: rpcClient)
+
+let result = try await contract.callInvokeFunction(
+    "symbol",
+    [],
+    [AccountSigner.calledByEntry(account)]
+)
 ```
-Reading information from the ABI in the contract's manifest.
+
+## Neo 3.10.0 RPCs
+
+The SDK includes typed request/response support for SDK-relevant Neo N3 v3.10.0 changes:
+
 ```swift
-if let methods = try? await smartContract.getManifest().abi?.methods {
-    print(methods)
-}
-```
-Using the `SmartContract` instance to invoke the `register` function with the domain and account as parameters.
-```swift
-let account = try Account.fromWIF("L3kCZj6QbFPwbsVhxnB8nUERDy4mhCSrWJew4u5Qh5QmGMfnCTda")
-let domainParam = ContractParameter.string("myname.neo")
-let accountParam = try ContractParameter.hash160(account.getScriptHash())
-            
-let function = "register"
-let txBuilder = try smartContract.invokeFunction(function, [domainParam, accountParam])
-```
-The complete invocation is below.
-```swift
-let url = URL(string: "http://localhost:40332")!
-let neoSwift = NeoSwift.build(HttpService(url: url))
+let signatureSet = try await client
+    .signMessage(input: .init(message: "hello", avoidSignatureReplay: true))
+    .signatureSet
 
-let scriptHash = try Hash160("0x1a70eac53f5882e40dd90f55463cce31a9f72cd4")
-let smartContract = SmartContract(scriptHash: scriptHash, neoSwift: neoSwift)
+let verification = try await client.verifyMessage(input: .init(
+    message: "hello",
+    signatureHex: signatureSet.signatures[0].signature,
+    publicKeyHex: signatureSet.signatures[0].publicKey,
+    saltHex: signatureSet.signatures[0].salt,
+    avoidSignatureReplay: true
+)).verification
 
-let account = try Account.fromWIF("L3kCZj6QbFPwbsVhxnB8nUERDy4mhCSrWJew4u5Qh5QmGMfnCTda")
-let domainParam = ContractParameter.string("myname.neo")
-let accountParam = try ContractParameter.hash160(account.getScriptHash())
-let function = "register"
-
-let response = try await smartContract
-    .invokeFunction(function, [domainParam, accountParam])
-    .signers(AccountSigner.calledByEntry(account))
-    .sign()
-    .send()
+let pending = try await client.getPendingValidUntilRelay().pendingState
+print(verification.isValid)
+print(pending.count)
 ```
 
-#### Testing the Invocation
-Using `callInvokeFunction` to test a contract invocation.
-```swift
-let url = URL(string: "http://localhost:40332")!
-let neoSwift = NeoSwift.build(HttpService(url: url))
+## Security
 
-let scriptHash = try Hash160("0x1a70eac53f5882e40dd90f55463cce31a9f72cd4")
-let function = "register"
+For production applications:
 
-let account = try Account.fromWIF("L3kCZj6QbFPwbsVhxnB8nUERDy4mhCSrWJew4u5Qh5QmGMfnCTda")
-let domainParam = ContractParameter.string("myname.neo")
-let accountParam = try ContractParameter.hash160(account.getScriptHash())
+- Use `SecureECKeyPair` for private key material.
+- Encrypt stored keys with NEP-2.
+- Validate transaction scripts, signers, fees, and network magic before signing.
+- Avoid logging private keys, WIF values, invocation scripts containing secrets, or wallet passwords.
+- Review [docs/SECURITY.md](docs/SECURITY.md) and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-let response = try await SmartContract(scriptHash: scriptHash, neoSwift: neoSwift)
-    .callInvokeFunction(function, [domainParam, accountParam], [AccountSigner.calledByEntry(account)])
-```
-#### Contract Interfaces
-Deploying a `ContractManagement` contract.
-```swift
-let tx = try await ContractManagement(neoSwift)
-    .deploy(nef, manifest)
-    .signers(AccountSigner.calledByEntry(account))
-    .sign()
-```
----
-### Token Contracts
-[neow3j docs](https://neow3j.io/#/neo-n3/dapp_development/token_contracts)
-#### Fungible Token Contracts (NEP-11)
-Transferring from one account to another.
-```swift
-let account = try Account.fromWIF("L3kCZj6QbFPwbsVhxnB8nUERDy4mhCSrWJew4u5Qh5QmGMfnCTda")
-let to = try Hash160.fromAddress("NWcx4EfYdfqn5jNjDz8AHE6hWtWdUGDdmy")
+## Testing
 
-let response = try await NeoToken(neoSwift)
-    .transfer(account, to, 15)
-    .sign()
-    .send()
-```
-Transferring using `Hash160` instead of an `Account`, manually adding the signers.
-```swift
-let to = try Hash160.fromAddress("NWcx4EfYdfqn5jNjDz8AHE6hWtWdUGDdmy")
-            
-// Owner of the contract. Required in for verifying the withdraw from the contract.
-let account = try Account.fromWIF("L3kCZj6QbFPwbsVhxnB8nUERDy4mhCSrWJew4u5Qh5QmGMfnCTda")
-
-let response = try await NeoToken(neoSwift)
-    .transfer(contractHash, to, 15)
-    .signers(AccountSigner.calledByEntry(account),
-             ContractSigner.calledByEntry(contractHash))
-    .sign()
-    .send()
-```
-#### Non-fungible Token Contracts (NEP-11)
-Sending 200 fractions of the token with ID 1.
-```swift
-let account = try Account.fromWIF("L3kCZj6QbFPwbsVhxnB8nUERDy4mhCSrWJew4u5Qh5QmGMfnCTda")
-let to = try Hash160.fromAddress("NWcx4EfYdfqn5jNjDz8AHE6hWtWdUGDdmy")
-
-let nft = try NonFungibleToken(scriptHash: Hash160("ebc856327332bcffb7587a28ef8d144df6be8537"), neoSwift: neoSwift)
-let txBuilder = try await nft.transfer(account, to, 200, [1])
-```
-Retrieving the token's properties
-```swift
-let properties = try await nft.properties([1])
-let name = properties["name"]
-let image = properties["image"]
-```
-
-## 🛡️ Security & Production
-
-### Security Features
-
-- **Secure Memory Management**: `SecureBytes` and `SecureECKeyPair` classes protect sensitive data
-- **Constant-Time Operations**: Cryptographic comparisons resistant to timing attacks
-- **Test Data Isolation**: Test credentials never included in production builds
-- **Dependency Security**: Version bounds and automated vulnerability scanning
-
-### Production Readiness
-
-NeoSwift v2.1+ is production-ready with:
-- ✅ Comprehensive security audit completed
-- ✅ Performance optimizations (50-70% faster serialization)
-- ✅ Extensive test coverage including security tests
-- ✅ Complete documentation and deployment guides
-
-### Important Resources
-
-- 📖 **[Security Guide](docs/SECURITY.md)** - Essential security practices
-- 🚀 **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
-- 📋 **[Migration Guide](CHANGELOG.md#migration-guide)** - Upgrading from v1.x
-- 🐛 **[Security Fixes Summary](SECURITY_FIXES_SUMMARY.md)** - All security improvements
-- 🧩 **[Neo SDK Interface Spec](docs/neo-sdk-spec.md)** - Language-agnostic interface/modules for implementing Neo SDKs in other languages
-
-## 🧪 Testing
-
-Run the test suite:
 ```bash
-# All tests
 swift test
-
-# Security tests only
 swift test --filter SecurityTests
-
-# Integration tests (requires network)
 ENABLE_NETWORK_TESTS=true swift test --filter IntegrationTests
 ```
 
-## 🤝 Contributing
+## Documentation
 
-1. Read the [Security Guide](docs/SECURITY.md) for security considerations
-2. Run security tests: `swift test --filter SecurityTests`
-3. Follow the existing code patterns and security practices
-4. Ensure all tests pass before submitting PRs
+- [Security Guide](docs/SECURITY.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [Neo SDK Interface Spec](docs/neo-sdk-spec.md)
+- [Changelog](CHANGELOG.md)
 
-### Security Issues
+## License
 
-For security vulnerabilities, please review our [Security Policy](docs/SECURITY.md#vulnerability-reporting) and report responsibly.
+`neo-swift-sdk` is released under the MIT License. See [LICENSE](LICENSE) for details.
 
-## 📄 License
+## Acknowledgements
 
-NeoSwift is released under the MIT License. See [LICENSE](LICENSE) for details.
-
-## 🙏 Acknowledgements
-
-- The Neo ecosystem and [neow3j](https://github.com/neow3j/neow3j) for the API design inspiration
-- [GrantShares](https://grantshares.io/) for supporting the original development  
-- The Swift community for excellent cryptographic libraries
-- Security researchers who help keep blockchain applications safe
+- The Neo ecosystem and [neow3j](https://github.com/neow3j/neow3j)
+- [GrantShares](https://grantshares.io/)
+- The Swift cryptography and server-side Swift communities

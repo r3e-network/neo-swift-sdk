@@ -413,7 +413,7 @@ public class NonFungibleToken : SmartContract
 ## 🌐 PROTOCOL COMPONENTS
 
 ### INeoSharp.cs - Main SDK Interface
-**Swift Reference**: `/protocol/NeoSwift.swift`
+**Swift Reference**: `/protocol/NeoRpcClient.swift`
 
 ```csharp
 public interface INeoSharp

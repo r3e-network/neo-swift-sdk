@@ -1,11 +1,30 @@
 # Changelog
 
-All notable changes to NeoSwift will be documented in this file.
+All notable changes to neo-swift-sdk will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [3.0.0] - 2026-06-28
+
+### Added
+- Added `NeoClient`, an AWS SDK-style operation facade with typed input/output models for representative node, blockchain, wallet, signing, relay, and DeferredRelay operations.
+- Added Neo N3 v3.10.0 `getversion` regression coverage, including RPC metadata and protocol lists.
+- Added Neo N3 v3.10.0 RPC support for `signmsg`, `verifymsg`, `sign`, `relay`, `getpendingvaliduntilrelay`, and `getrawpendingtx`.
+
+### Changed
+- Renamed the SwiftPM package identity to `neo-swift-sdk`, the SwiftPM product and module to `NeoSwiftSDK`, and the primary application client to `NeoClient`.
+- Renamed the low-level JSON-RPC request builder to `NeoRpcClient` and its configuration/service types to `NeoRpcClientConfiguration` and `NeoRpcService`.
+- Updated Neo N3 compatibility to v3.10.0.
+- Widened `NeoGetVersion.NeoProtocol.initialGasDistribution` to `UInt64` to match the v3.10.0 node protocol model.
+- Updated invocation diagnostics decoding to accept the Neo N3 v3.10.0 `diagnostics.traces` tree and diagnostics responses that omit `storagechanges`.
+
+### Fixed
+- Iterator traversal now attempts to terminate node sessions even when traversal or item mapping throws.
+- Default iterator mapping now throws a typed cast error instead of force-casting.
+- Transaction builder now deduplicates duplicate `Conflicts` attributes so serialized transactions follow Neo N3 v3.10.0 validation rules.
 
 ## [2.2.0] - 2026-02-13
 
@@ -36,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Added final modifier to core non-inheritable classes for compiler optimization
 - Updated Neo N3 compatibility to v3.9.1
-- Improved error messages in NeoSwiftError for better debugging
+- Improved error messages in NeoError for better debugging
 
 ## [2.1.0] - 2026-01-21
 

@@ -83,14 +83,14 @@ jobs:
     - name: Build release
       run: swift build --configuration release
     - name: Create archive
-      run: "PLATFORM=$(echo \"${{ matrix.os }}\" | cut -d'-' -f1)\ntar -czf neoswift-${{\
+      run: "PLATFORM=$(echo \"${{ matrix.os }}\" | cut -d'-' -f1)\ntar -czf neo-swift-sdk-${{\
         \ needs.validate.outputs.version }}-${PLATFORM}.tar.gz \\\n  -C .build/release\
         \ .\n"
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: neoswift-${{ needs.validate.outputs.version }}-${{ matrix.os }}
-        path: neoswift-${{ needs.validate.outputs.version }}-*.tar.gz
+        name: neo-swift-sdk-${{ needs.validate.outputs.version }}-${{ matrix.os }}
+        path: neo-swift-sdk-${{ needs.validate.outputs.version }}-*.tar.gz
     timeout-minutes: 15
   create-release:
     name: Create Pre-Release
@@ -107,7 +107,7 @@ jobs:
       uses: actions/download-artifact@v3
     - name: Generate release notes
       id: release_notes
-      run: "cat > release_notes.md << 'EOF'\n## \U0001F680 NeoSwift ${{ needs.validate.outputs.version\
+      run: "cat > release_notes.md << 'EOF'\n## \U0001F680 neo-swift-sdk ${{ needs.validate.outputs.version\
         \ }}\n\n### \U0001F6E1️ Security Improvements\n- ✅ Secure memory management\
         \ for private keys\n- ✅ Constant-time cryptographic comparisons  \n- ✅ Test\
         \ credentials isolated from production builds\n- ✅ Enhanced dependency security\
@@ -121,7 +121,7 @@ jobs:
         \ with `SecureECKeyPair` for production use\n- Test credentials moved to external\
         \ files (DEBUG builds only)\n- Some internal APIs made private for security\n\
         \n### \U0001F4E6 Installation\n\n**Swift Package Manager:**\n```swift\n.package(url:\
-        \ \"https://github.com/crisogray/NeoSwift\", from: \"${{ needs.validate.outputs.version\
+        \ \"https://github.com/r3e-network/neo-swift-sdk\", from: \"${{ needs.validate.outputs.version\
         \ }}\")\n```\n\n**For production use, ensure you:**\n1. Use `SecureECKeyPair`\
         \ for key management\n2. Enable hash caching: `HashCache.shared.maxCacheSize\
         \ = 5000`\n3. Review the [Security Guide](./docs/SECURITY.md)\n4. Follow the\
@@ -133,11 +133,11 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        name: NeoSwift ${{ needs.validate.outputs.version }}
+        name: neo-swift-sdk ${{ needs.validate.outputs.version }}
         body_path: release_notes.md
         draft: false
         prerelease: ${{ needs.validate.outputs.is_prerelease }}
-        files: 'neoswift-*/neoswift-*.tar.gz
+        files: 'neo-swift-sdk-*/neo-swift-sdk-*.tar.gz
 
           '
         generate_release_notes: false

@@ -915,7 +915,7 @@ public class NeoClient : INeoClient
 
 | Swift API | C# API | Notes |
 |-----------|--------|-------|
-| `NeoSwift.build()` | `ServiceCollection.AddNeoCSharp()` | Dependency injection pattern |
+| `NeoRpcClient.build()` | `ServiceCollection.AddNeoCSharp()` | Dependency injection pattern |
 | `neow3j.getBlockByHash()` | `client.GetBlockAsync(hash)` | Async/await pattern |
 | `ECKeyPair.create()` | `ECKeyPair.Generate()` | Static factory method |
 | `Transaction.sign()` | `transaction.SignAsync()` | Async signing |

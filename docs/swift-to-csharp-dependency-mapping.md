@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document provides a comprehensive mapping of Swift dependencies used in NeoSwift to their C# equivalents for the NeoCSharp port. All identified Swift packages have suitable C# alternatives that provide equivalent or superior functionality.
+This document provides a comprehensive mapping of Swift dependencies used in NeoSwiftSDK to their C# equivalents for the NeoCSharp port. All identified Swift packages have suitable C# alternatives that provide equivalent or superior functionality.
 
 ## Dependency Analysis
 
@@ -198,15 +198,15 @@ public static class StringExtensions {
 
 ### Swift Package Structure
 ```
-NeoSwift/
+NeoSwiftSDK/
 ├── Package.swift
 ├── Sources/
-│   └── NeoSwift/
+│   └── NeoSwiftSDK/
 │       ├── crypto/
 │       ├── contract/
 │       └── protocol/
 └── Tests/
-    └── NeoSwiftTests/
+    └── NeoSwiftSDKTests/
 ```
 
 ### C# Project Structure

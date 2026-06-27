@@ -1,197 +1,76 @@
-# NeoSwift Security Guide
+# neo-swift-sdk Security Guide
 
-## Overview
+This guide covers production use of `neo-swift-sdk` in applications that handle private keys, wallet files, signatures, or transaction relay.
 
-This document outlines security best practices and considerations when using NeoSwift in production environments. NeoSwift handles sensitive cryptographic operations and private keys, making security a critical concern.
+## Key Material
 
-## Security Features
-
-### 1. Secure Memory Management
-
-NeoSwift provides `SecureBytes` and `SecureECKeyPair` classes for handling sensitive data:
-
-- **Memory Protection**: Sensitive data is stored in protected memory regions
-- **Automatic Clearing**: Memory is securely overwritten when no longer needed
-- **Memory Locking**: Prevents sensitive data from being swapped to disk
+Use secure key containers for private keys:
 
 ```swift
-// Use SecureECKeyPair for production key management
-let secureKeyPair = try SecureECKeyPair.createEcKeyPair()
+import NeoSwiftSDK
 
-// Private key memory is automatically protected and cleared
-let signature = secureKeyPair.sign(messageHash: messageHash)
+let keyPair = try SecureECKeyPair.createEcKeyPair()
+let address = try keyPair.getAddress()
 ```
 
-### 2. Constant-Time Operations
+Do not log WIF values, decrypted private keys, seed phrases, wallet passwords, NEP-2 passphrases, or raw signing payloads that contain secrets.
 
-All cryptographic comparisons use constant-time algorithms to prevent timing attacks:
+For persisted keys:
+
+- Prefer NEP-2 encrypted keys.
+- Keep passphrases outside source control and build logs.
+- Clear temporary key material as soon as the operation finishes.
+- Treat test wallets as secrets unless they are explicitly burn-only fixtures.
+
+## RPC Transport
+
+Use HTTPS endpoints in production:
 
 ```swift
-// Constant-time comparison for password verification
-if ConstantTime.areEqual(providedHash, expectedHash) {
-    // Password is correct
-}
+let client = NeoClient(endpoint: URL(string: "https://mainnet1.neo.coz.io:443")!)
 ```
 
-### 3. Test Credential Isolation
+When using the request-builder API:
 
-Test credentials are isolated from production code:
-- Stored in external JSON files
-- Only available in DEBUG builds
-- Compilation fails if test credentials are used in RELEASE builds
+```swift
+let rpcClient = NeoRpcClient.build(HttpService(url: endpoint))
+let version = try await rpcClient.getVersion().send().getResult()
+```
 
-## Security Best Practices
+Production services should pin or otherwise control trusted RPC endpoints. Do not sign transactions against an endpoint you do not trust to report the intended network magic and chain state.
 
-### Private Key Management
+## Transaction Signing
 
-1. **Never store private keys in plain text**
-   ```swift
-   // DON'T do this
-   let privateKey = "84180ac9d6eb6fba207ea4ef9d2200102d1ebeb4b9c07e2c6a738a42742e27a5"
-   
-   // DO this instead
-   let secureKeyPair = try SecureECKeyPair.createEcKeyPair()
-   ```
+Before signing:
 
-2. **Use NEP-2 encryption for key storage**
-   ```swift
-   let password = getSecurePasswordFromUser()
-   let encrypted = try NEP2.encrypt(password, keyPair)
-   // Store 'encrypted' safely
-   ```
+- Verify the network magic, script, signers, witness scopes, fees, and `validUntilBlock`.
+- Verify the token script hash and amount units.
+- Reject unexpected high-priority, conflict, notary, or oracle attributes.
+- Keep `Conflicts` attributes deduplicated by hash.
 
-3. **Clear sensitive data after use**
-   ```swift
-   let secureData = SecureBytes(sensitiveBytes)
-   defer { secureData.clear() }
-   // Use secureData
-   ```
+For multi-signature flows, inspect the `ContractParametersContext` before forwarding it to another signer or relay endpoint.
 
-### Network Security
+## Neo 3.10.0 Message Signing
 
-1. **Always use HTTPS endpoints**
-   ```swift
-   let url = URL(string: "https://mainnet1.neo.coz.io:443")!
-   let neoSwift = NeoSwift.build(HttpService(url: url))
-   ```
+`signmsg` and `verifymsg` are wallet RPCs. Treat their output as signatures over the node-defined payload, not arbitrary application authentication unless your application explicitly includes domain separation and replay constraints.
 
-2. **Validate node responses**
-   ```swift
-   let response = try await neoSwift.getBlock(blockHash).send()
-   guard response.error == nil else {
-       // Handle error appropriately
-       throw SecurityError.untrustedResponse
-   }
-   ```
+Use `avoidSignatureReplay: true` for network-bound signatures:
 
-### Transaction Security
+```swift
+let signed = try await client.signMessage(input: .init(
+    message: "example",
+    avoidSignatureReplay: true
+)).signatureSet
+```
 
-1. **Verify transaction details before signing**
-   ```swift
-   let tx = try await TransactionBuilder(neoSwift)
-       .script(script)
-       .signers(signers)
-       .getUnsignedTransaction()
-   
-   // Verify transaction details
-   guard tx.systemFee + tx.networkFee < maxAcceptableFee else {
-       throw SecurityError.excessiveFees
-   }
-   
-   // Only sign after verification
-   let signedTx = try tx.sign()
-   ```
+## Dependency And CI Hygiene
 
-2. **Use multi-signature accounts for high-value operations**
-   ```swift
-   let multiSigAccount = try Account.createMultiSigAccount(publicKeys, threshold: 2)
-   ```
+- Keep dependency ranges bounded.
+- Run `swift test` before release.
+- Run security-focused tests with `swift test --filter SecurityTests`.
+- Scan commits for credentials before pushing.
+- Keep release artifacts and coverage uploads free of wallet fixtures.
 
 ## Vulnerability Reporting
 
-If you discover a security vulnerability in NeoSwift:
-
-1. **DO NOT** create a public GitHub issue
-2. Email security details to: [security@neoswift.io] (update with actual email)
-3. Include:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Suggested fix (if available)
-
-## Security Checklist for Production
-
-Before deploying to production, ensure:
-
-- [ ] All private keys use `SecureECKeyPair` or are encrypted with NEP-2
-- [ ] Test credentials are not included in production builds
-- [ ] All network communication uses HTTPS
-- [ ] Transaction fees are validated before signing
-- [ ] Error messages don't leak sensitive information
-- [ ] Dependencies are up-to-date and from trusted sources
-- [ ] Audit logs don't contain private keys or passwords
-- [ ] Multi-signature is used for high-value accounts
-- [ ] Regular security updates are applied
-
-## Cryptographic Specifications
-
-NeoSwift implements:
-- **Elliptic Curve**: secp256r1 (P-256)
-- **Signing Algorithm**: ECDSA with deterministic k (RFC 6979)
-- **Hash Functions**: SHA-256, RIPEMD-160
-- **Key Derivation**: Scrypt (N=16384, r=8, p=8)
-- **Encryption**: AES-256-ECB (for NEP-2)
-
-## Dependencies Security
-
-Regular security audits should include:
-
-1. **Dependency Updates**
-   ```bash
-   swift package update
-   swift package show-dependencies
-   ```
-
-2. **Known Vulnerabilities Check**
-   - Review security advisories for all dependencies
-   - Monitor: BigInt, SwiftECC, CryptoSwift, Scrypt, BIP39
-
-3. **Supply Chain Security**
-   - Verify package checksums
-   - Use specific version constraints in Package.swift
-
-## Secure Development Workflow
-
-1. **Code Review**: All cryptographic code changes require security review
-2. **Testing**: Run security test suite before releases
-3. **Static Analysis**: Use SwiftLint with security rules
-4. **Penetration Testing**: Conduct regular security assessments
-
-## Emergency Response
-
-In case of security incident:
-
-1. **Immediate Actions**
-   - Revoke compromised keys
-   - Update affected accounts
-   - Notify users if their funds are at risk
-
-2. **Investigation**
-   - Analyze logs (ensure no sensitive data logged)
-   - Identify attack vector
-   - Assess impact scope
-
-3. **Remediation**
-   - Patch vulnerability
-   - Update security measures
-   - Publish security advisory
-
-## Additional Resources
-
-- [Neo Security Best Practices](https://docs.neo.org/docs/n3/develop/write/security)
-- [OWASP Cryptographic Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html)
-- [Swift Security Guidelines](https://developer.apple.com/documentation/security)
-
----
-
-Remember: Security is an ongoing process, not a one-time implementation. Regular reviews and updates are essential for maintaining a secure blockchain application.
+Report vulnerabilities privately to the maintainers before public disclosure. Include a minimal reproduction, affected version or commit, and the expected impact.

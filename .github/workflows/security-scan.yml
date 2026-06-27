@@ -77,7 +77,7 @@ jobs:
 
         '
     - name: Generate test coverage
-      run: "swift test --enable-code-coverage\nxcrun llvm-cov report \\\n  .build/debug/NeoSwiftPackageTests.xctest/Contents/MacOS/NeoSwiftPackageTests\
+      run: "swift test --enable-code-coverage\nxcrun llvm-cov report \\\n  .build/debug/neo_swift_sdkPackageTests.xctest/Contents/MacOS/neo_swift_sdkPackageTests\
         \ \\\n  -instr-profile .build/debug/codecov/default.profdata \\\n  -ignore-filename-regex=\"\
         .*/Tests/.*\" \\\n  -use-color\n"
     - name: Check for common vulnerabilities

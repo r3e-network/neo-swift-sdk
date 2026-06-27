@@ -78,10 +78,10 @@ This analysis compares the complete Neo N3 Swift SDK (143 files) with the curren
 ### 🌐 PROTOCOL COMPONENTS (MEDIUM PRIORITY)
 
 #### ❌ Missing Core Protocol Files:
-- **NeoSwift** - Main SDK interface
-- **NeoSwiftConfig** - Configuration management
-- **NeoSwiftExpress** - Express mode operations
-- **NeoSwiftService** - Service layer abstraction
+- **NeoSwiftSDK** - Main SDK interface
+- **NeoRpcClientConfiguration** - Configuration management
+- **NeoExpressClient** - Express mode operations
+- **NeoRpcService** - Service layer abstraction
 - **ProtocolError** - Protocol-specific errors
 - **Service** - Base service interface
 
@@ -125,7 +125,7 @@ This analysis compares the complete Neo N3 Swift SDK (143 files) with the curren
 
 #### ❌ Missing HTTP & RX Components:
 - **JsonRpc2_0Rx** - Reactive JSON-RPC extensions
-- **NeoSwiftRx** - Reactive programming support
+- **NeoRx** - Reactive programming support
 
 ### 📊 TYPE SYSTEM COMPONENTS (MEDIUM PRIORITY)
 
@@ -148,14 +148,14 @@ This analysis compares the complete Neo N3 Swift SDK (143 files) with the curren
 ### 🔧 ROOT LEVEL COMPONENTS (HIGH PRIORITY)
 
 #### ❌ Missing Root Files:
-- **NeoSwiftError** - Main error type system
+- **NeoError** - Main error type system
 
 ---
 
 ## IMPLEMENTATION PRIORITY MATRIX
 
 ### 🚨 CRITICAL (Implement First)
-1. **NeoSwiftError** - Core error handling
+1. **NeoError** - Core error handling
 2. **Hash** - Core cryptographic operations
 3. **NeoSerializable** - Serialization interface
 4. **OptimizedBinaryWriter** - Optimized I/O

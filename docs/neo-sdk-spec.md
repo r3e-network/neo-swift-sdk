@@ -1,7 +1,7 @@
 # Neo SDK Interface & Structure Specification (Language-Agnostic)
 
 Version: **0.1 (draft)**  
-Reference implementation studied: **NeoSwift** (Swift SDK) with an API style compatible with **neow3j**.
+Reference implementation studied: **NeoSwiftSDK** (Swift SDK) with an API style compatible with **neow3j**.
 
 This document defines a **common public SDK surface** for Neo N3 across languages (C, C++, Java, JS/TS, Rust, Go, …). It focuses on **module boundaries, type definitions, and method semantics** so different SDKs can expose the “same” API while still being idiomatic in each language.
 
@@ -346,7 +346,7 @@ SDKs should:
 
 #### 6.5.2 Methods that require base64 parameters (common)
 
-From the NeoSwift reference, these RPC parameters are sent as base64:
+From the NeoSwiftSDK reference, these RPC parameters are sent as base64:
 
 - `sendrawtransaction`: raw transaction bytes
 - `calculatenetworkfee`: raw transaction bytes
@@ -411,7 +411,7 @@ Conventions used below:
 - `Base64(data)`: base64 encoding of raw bytes.
 - `Address(hash160)`: Base58Check address derived from a script hash using configured `addressVersion`.
 
-Core RPC mapping (derived from NeoSwift):
+Core RPC mapping (derived from NeoSwiftSDK):
 
 | Canonical SDK method | JSON-RPC method | Params (wire order) |
 |---|---|---|
@@ -897,7 +897,7 @@ NeoProtocol {
   addressVersion: int
   maxTransactionsPerBlock: int
   memoryPoolMaxTransactions: int
-  initialGasDistribution: int
+  initialGasDistribution: uint64
 }
 
 Peers {
@@ -1019,7 +1019,7 @@ OracleRequest {
 
 ## 8) Observability / Block Polling (Optional)
 
-NeoSwift provides a polling-based block stream. Canonical cross-language abstraction:
+NeoSwiftSDK provides a polling-based block stream. Canonical cross-language abstraction:
 
 ```text
 interface BlockStream {
@@ -1483,38 +1483,38 @@ To allow partial implementations, SDKs should declare support levels:
 
 ---
 
-## 14) Mapping to NeoSwift (Reference)
+## 14) Mapping to NeoSwiftSDK (Reference)
 
-This table shows how NeoSwift names map to this spec (useful for other SDK implementers):
+This table shows how NeoSwiftSDK names map to this spec (useful for other SDK implementers):
 
-- `NeoRpcClient` → `Sources/NeoSwift/protocol/NeoSwift.swift` (`NeoSwift` class) + `Sources/NeoSwift/protocol/core/Neo.swift` (`Neo` protocol)
-- `RpcTransport` → `Sources/NeoSwift/protocol/NeoSwiftService.swift` + `Sources/NeoSwift/protocol/Service.swift` + `Sources/NeoSwift/protocol/http/HttpService.swift`
-- `NeoClientConfig` → `Sources/NeoSwift/protocol/NeoSwiftConfig.swift`
-- `Request/RpcCall` → `Sources/NeoSwift/protocol/core/Request.swift`
-- `RpcResponse<T>` → `Sources/NeoSwift/protocol/core/Response.swift`
-- Block polling / streams → `Sources/NeoSwift/protocol/rx/NeoSwiftRx.swift`, `Sources/NeoSwift/protocol/rx/JsonRpc2_0Rx.swift`, `Sources/NeoSwift/protocol/core/polling/BlockIndexPolling.swift`
-- `TransactionBuilder` → `Sources/NeoSwift/transaction/TransactionBuilder.swift`
-- `Transaction` → `Sources/NeoSwift/transaction/NeoTransaction.swift`
-- `Signer/AccountSigner/ContractSigner` → `Sources/NeoSwift/transaction/Signer.swift`, `Sources/NeoSwift/transaction/AccountSigner.swift`, `Sources/NeoSwift/transaction/ContractSigner.swift`
-- `Witness/WitnessScope` → `Sources/NeoSwift/transaction/Witness.swift`, `Sources/NeoSwift/transaction/WitnessScope.swift`
-- `ContractParametersContext` → `Sources/NeoSwift/transaction/ContractParametersContext.swift`
-- `ScriptBuilder` → `Sources/NeoSwift/script/ScriptBuilder.swift`
-- `ContractParameter` → `Sources/NeoSwift/types/ContractParameter.swift`
-- `InvocationResult/StackItem` → `Sources/NeoSwift/protocol/core/response/InvocationResult.swift`, `Sources/NeoSwift/protocol/core/stackitem/StackItem.swift`
-- Neo binary serialization → `Sources/NeoSwift/serialization/BinaryReader.swift`, `Sources/NeoSwift/serialization/BinaryWriter.swift`, `Sources/NeoSwift/serialization/NeoSerializable.swift`
-- `Wallet/Account/NEP-6` → `Sources/NeoSwift/wallet/Wallet.swift`, `Sources/NeoSwift/wallet/Account.swift`, `Sources/NeoSwift/wallet/nep6/*`
-- `NEP-2/WIF` → `Sources/NeoSwift/crypto/NEP2.swift`, `Sources/NeoSwift/crypto/WIF.swift`
-- `SmartContract + wrappers` → `Sources/NeoSwift/contract/*`
-- Core constants + hash/address types → `Sources/NeoSwift/NeoConstants.swift`, `Sources/NeoSwift/types/Hash160.swift`, `Sources/NeoSwift/types/Hash256.swift`
+- `NeoRpcClient` → `Sources/NeoSwiftSDK/protocol/NeoRpcClient.swift` (`NeoRpcClient` class) + `Sources/NeoSwiftSDK/protocol/core/Neo.swift` (`Neo` protocol)
+- `RpcTransport` → `Sources/NeoSwiftSDK/protocol/NeoRpcService.swift` + `Sources/NeoSwiftSDK/protocol/Service.swift` + `Sources/NeoSwiftSDK/protocol/http/HttpService.swift`
+- `NeoClientConfig` → `Sources/NeoSwiftSDK/protocol/NeoClient.swift` (`NeoClient.NeoClientConfiguration`) plus `Sources/NeoSwiftSDK/protocol/NeoRpcClientConfiguration.swift` for low-level RPC behavior
+- `Request/RpcCall` → `Sources/NeoSwiftSDK/protocol/core/Request.swift`
+- `RpcResponse<T>` → `Sources/NeoSwiftSDK/protocol/core/Response.swift`
+- Block polling / streams → `Sources/NeoSwiftSDK/protocol/rx/NeoRx.swift`, `Sources/NeoSwiftSDK/protocol/rx/JsonRpc2_0Rx.swift`, `Sources/NeoSwiftSDK/protocol/core/polling/BlockIndexPolling.swift`
+- `TransactionBuilder` → `Sources/NeoSwiftSDK/transaction/TransactionBuilder.swift`
+- `Transaction` → `Sources/NeoSwiftSDK/transaction/NeoTransaction.swift`
+- `Signer/AccountSigner/ContractSigner` → `Sources/NeoSwiftSDK/transaction/Signer.swift`, `Sources/NeoSwiftSDK/transaction/AccountSigner.swift`, `Sources/NeoSwiftSDK/transaction/ContractSigner.swift`
+- `Witness/WitnessScope` → `Sources/NeoSwiftSDK/transaction/Witness.swift`, `Sources/NeoSwiftSDK/transaction/WitnessScope.swift`
+- `ContractParametersContext` → `Sources/NeoSwiftSDK/transaction/ContractParametersContext.swift`
+- `ScriptBuilder` → `Sources/NeoSwiftSDK/script/ScriptBuilder.swift`
+- `ContractParameter` → `Sources/NeoSwiftSDK/types/ContractParameter.swift`
+- `InvocationResult/StackItem` → `Sources/NeoSwiftSDK/protocol/core/response/InvocationResult.swift`, `Sources/NeoSwiftSDK/protocol/core/stackitem/StackItem.swift`
+- Neo binary serialization → `Sources/NeoSwiftSDK/serialization/BinaryReader.swift`, `Sources/NeoSwiftSDK/serialization/BinaryWriter.swift`, `Sources/NeoSwiftSDK/serialization/NeoSerializable.swift`
+- `Wallet/Account/NEP-6` → `Sources/NeoSwiftSDK/wallet/Wallet.swift`, `Sources/NeoSwiftSDK/wallet/Account.swift`, `Sources/NeoSwiftSDK/wallet/nep6/*`
+- `NEP-2/WIF` → `Sources/NeoSwiftSDK/crypto/NEP2.swift`, `Sources/NeoSwiftSDK/crypto/WIF.swift`
+- `SmartContract + wrappers` → `Sources/NeoSwiftSDK/contract/*`
+- Core constants + hash/address types → `Sources/NeoSwiftSDK/NeoConstants.swift`, `Sources/NeoSwiftSDK/types/Hash160.swift`, `Sources/NeoSwiftSDK/types/Hash256.swift`
 
-### NeoSwift Compatibility Notes (Intentional Spec Differences)
+### NeoSwiftSDK Compatibility Notes (Intentional Spec Differences)
 
-This spec is designed to be portable across languages, so it sometimes tightens or reshapes NeoSwift’s surface:
+This spec is designed to be portable across languages, so it sometimes tightens or reshapes NeoSwiftSDK’s surface:
 
-- **No-overload canonical RPC names**: NeoSwift uses overloads (e.g., `getBlock(hash, …)` vs `getBlock(index, …)`); the spec defines distinct “ByHash/ByIndex” names so C/Go/Rust can implement consistently.
-- **BigInt + JSON safety**: NeoSwift often uses native `Int` for numeric fields/params; the spec requires an arbitrary-precision integer model and recommends JSON **decimal strings** for integers to avoid JS precision loss.
+- **No-overload canonical RPC names**: NeoSwiftSDK uses overloads (e.g., `getBlock(hash, …)` vs `getBlock(index, …)`); the spec defines distinct “ByHash/ByIndex” names so C/Go/Rust can implement consistently.
+- **BigInt + JSON safety**: NeoSwiftSDK often uses native `Int` for numeric fields/params; the spec requires an arbitrary-precision integer model and recommends JSON **decimal strings** for integers to avoid JS precision loss.
 - **Configurable address version**: the spec treats `addressVersion` as part of client config; SDKs should ensure address validation/encoding uses the configured value (not a hard-coded default).
-- **Observability abstraction**: NeoSwift exposes Combine publishers; the spec describes a language-neutral `BlockStream` concept (can be implemented with polling, async iterators, callbacks, etc.).
+- **Observability abstraction**: NeoSwiftSDK exposes Combine publishers; the spec describes a language-neutral `BlockStream` concept (can be implemented with polling, async iterators, callbacks, etc.).
 
 ---
 

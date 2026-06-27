@@ -88,3 +88,8 @@ NeoSharp/_pkginfo.txt
 
 # Visual Studio cache/options directory
 NeoSharp/.vs/
+.omx/
+
+# Generated documentation from vendored Swift packages
+Vendor/**/docs/
+Vendor/**/*.doccarchive/

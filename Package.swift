@@ -1,10 +1,10 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
-    name: "NeoSwift",
+    name: "neo-swift-sdk",
     platforms: [
         .macOS(.v10_15),
         .iOS(.v13),
@@ -12,22 +12,22 @@ let package = Package(
         .watchOS(.v6)
     ],
     products: [
-        .library(name: "NeoSwift",
-                 targets: ["NeoSwift"]),
+        .library(name: "NeoSwiftSDK",
+                 targets: ["NeoSwiftSDK"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/leif-ibsen/BigInt", "1.4.0"..<"2.0.0"),
-        .package(url: "https://github.com/leif-ibsen/SwiftECC", "5.0.0"..<"6.0.0"),
+        .package(path: "Vendor/BigInt"),
+        .package(path: "Vendor/ASN1"),
+        .package(path: "Vendor/SwiftECC"),
         .package(url: "https://github.com/krzyzanowskim/CryptoSwift", "1.8.0"..<"2.0.0"),
         .package(url: "https://github.com/greymass/swift-scrypt.git", "1.0.0"..<"2.0.0"),
-        .package(url: "https://github.com/pengpengliu/BIP39", "1.0.1"..<"2.0.0"),
     ],
     targets: [
-        .target(name: "NeoSwift",
-                dependencies: ["BigInt", "CryptoSwift", "SwiftECC", "BIP39",
+        .target(name: "NeoSwiftSDK",
+                dependencies: ["ASN1", "BigInt", "CryptoSwift", "SwiftECC",
                                .product(name: "Scrypt", package: "swift-scrypt")]),
-        .testTarget(name: "NeoSwiftTests",
-                    dependencies: ["NeoSwift", "BigInt", "SwiftECC"],
+        .testTarget(name: "NeoSwiftSDKTests",
+                    dependencies: ["NeoSwiftSDK", "BigInt", "SwiftECC"],
                     resources: [.process("unit/resources/")]),
     ]
 )

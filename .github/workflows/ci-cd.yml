@@ -1,5 +1,5 @@
 name: CI/CD Pipeline
-true:
+on:
   push:
     branches:
     - main
@@ -43,7 +43,7 @@ jobs:
       run: swift test --filter SecurityTests
     - name: Generate test coverage
       if: matrix.platform == 'macOS'
-      run: "swift test --enable-code-coverage\nxcrun llvm-cov export \\\n  .build/debug/NeoSwiftPackageTests.xctest/Contents/MacOS/NeoSwiftPackageTests\
+      run: "swift test --enable-code-coverage\nxcrun llvm-cov export \\\n  .build/debug/neo_swift_sdkPackageTests.xctest/Contents/MacOS/neo_swift_sdkPackageTests\
         \ \\\n  -instr-profile .build/debug/codecov/default.profdata \\\n  -format=\"\
         lcov\" > coverage.lcov\n"
     - name: Upload coverage
@@ -125,7 +125,7 @@ jobs:
     - name: Build release artifacts
       run: 'swift build -c release
 
-        tar -czf neoswift-${{ github.ref_name }}-linux.tar.gz -C .build/release .
+        tar -czf neo-swift-sdk-${{ github.ref_name }}-linux.tar.gz -C .build/release .
 
         '
     - name: Generate changelog
@@ -168,7 +168,7 @@ jobs:
         draft: false
         prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha')
           }}
-        files: 'neoswift-${{ github.ref_name }}-linux.tar.gz
+        files: 'neo-swift-sdk-${{ github.ref_name }}-linux.tar.gz
 
           '
         generate_release_notes: true
@@ -216,7 +216,7 @@ jobs:
     steps:
     - name: Send release notification
       if: needs.release.result == 'success'
-      run: 'echo "🎉 NeoSwift ${{ github.ref_name }} has been released!"
+      run: 'echo "🎉 neo-swift-sdk ${{ github.ref_name }} has been released!"
 
         echo "View release: https://github.com/${{ github.repository }}/releases/tag/${{
         github.ref_name }}"
