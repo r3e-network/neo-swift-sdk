@@ -2,6 +2,12 @@
 import Combine
 import Foundation
 
+// Combine's Future.Promise is not Sendable-annotated on Swift 6.1, so keep
+// the unchecked concurrency boundary local to this Combine-to-async bridge.
+private struct UncheckedSendable<Value>: @unchecked Sendable {
+    let value: Value
+}
+
 public actor BlockIndexActor {
     
     var blockIndex: Int? = nil
@@ -49,15 +55,15 @@ extension Publisher {
     ) -> Publishers.FlatMap<Future<T, Error>, Self> {
         flatMap(maxPublishers: .max(1)) { value in
             Future<T, Error> { promise in
-                nonisolated(unsafe) let promise = promise
-                nonisolated(unsafe) let value = value
-                nonisolated(unsafe) let transform = transform
+                let promise = UncheckedSendable(value: promise)
+                let value = UncheckedSendable(value: value)
+                let transform = UncheckedSendable(value: transform)
                 Task {
                     do {
-                        let output = try await transform(value)
-                        promise(.success(output))
+                        let output = try await transform.value(value.value)
+                        promise.value(.success(output))
                     } catch {
-                        promise(.failure(error))
+                        promise.value(.failure(error))
                     }
                 }
             }
