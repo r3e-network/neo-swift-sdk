@@ -91,7 +91,7 @@ public final class NeoTransaction {
     /// - Parameter witness: The account to sign with
     /// - Returns: self
     public func addWitness(_ account: Account) async throws -> NeoTransaction {
-        guard let keyPair = account.keyPair else {
+        guard let keyPair = account.secureKeyPair else {
             throw NeoError.illegalArgument("Provided account has no key pair.")
         }
         try await witnesses.append(.create(getHashData(), keyPair))
@@ -125,10 +125,15 @@ public final class NeoTransaction {
     /// - Returns: self
     public func addMultiSigWitness(_ verificationScript: VerificationScript, _ accounts: Account...) async throws -> NeoTransaction {
         let hashData = try await getHashData()
-        let signatures = accounts
-            .compactMap(\.keyPair)
+        let keyPairs = try accounts.map { account in
+            guard let keyPair = account.secureKeyPair else {
+                throw NeoError.illegalArgument("Account \(account.address) does not hold a private key.")
+            }
+            return keyPair
+        }
+        let signatures = try keyPairs
             .sorted { $0.publicKey < $1.publicKey }
-            .compactMap { try? Sign.signMessage(hashData, $0) }
+            .map { try Sign.signMessage(hashData, $0) }
         let witness = try Witness.creatMultiSigWitness(signatures, verificationScript)
         return addWitness(witness)
     }

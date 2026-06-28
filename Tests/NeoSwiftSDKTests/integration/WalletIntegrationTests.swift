@@ -78,8 +78,8 @@ final class WalletIntegrationTests: IntegrationTestBase {
         XCTAssertEqual(encryptedKey.count, 58)
         
         // Test decryption
-        let decryptedKeyPair = try NEP2.decrypt(password, encryptedKey)
-        let decryptedAccount = try Account(keyPair: decryptedKeyPair)
+        let decryptedKeyPair = try NEP2.decryptSecure(password, encryptedKey)
+        let decryptedAccount = try Account(secureKeyPair: decryptedKeyPair)
         XCTAssertEqual(account.address, decryptedAccount.address)
         XCTAssertEqual(try account.getScriptHash(), try decryptedAccount.getScriptHash())
     }

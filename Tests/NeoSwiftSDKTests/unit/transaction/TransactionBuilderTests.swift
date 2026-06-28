@@ -135,7 +135,7 @@ class TransactionBuilderTests: XCTestCase {
         let blockCountJson = JSON.from("getblockcount_1000")
         _ = mockUrlSession.data(["invokescript": invokeJson, "calculatenetworkfee": networkFeeJson, "getcommittee": committeeJson, "getblockcount": blockCountJson])
         
-        let multiSigAccount = try! Account.createMultiSigAccount([account2.keyPair!.publicKey, account1.keyPair!.publicKey], 1)
+        let multiSigAccount = try! Account.createMultiSigAccount([account2.publicKey!, account1.publicKey!], 1)
         let tx = try! await TransactionBuilder(rpcClient).script(SCRIPT_INVOKEFUNCTION_NEO_SYMBOL_BYTES)
             .attributes(.highPriority).signers(AccountSigner.none(multiSigAccount)).getUnsignedTransaction()
         XCTAssertEqual(tx.attributes, [.highPriority])
@@ -248,7 +248,7 @@ class TransactionBuilderTests: XCTestCase {
         _ = mockUrlSession.data(["invokescript": invokeJson, "calculatenetworkfee": networkFeeJson, "getblockcount": blockCountJson])
         
         let builder = try! TransactionBuilder(rpcClient).script(SCRIPT_INVOKEFUNCTION_NEO_SYMBOL_BYTES)
-            .signers(AccountSigner.none(Account.createMultiSigAccount([account1.keyPair!.publicKey], 1)))
+            .signers(AccountSigner.none(Account.createMultiSigAccount([account1.publicKey!], 1)))
         do {
             _ = try await builder.sign()
             XCTFail("No exception")
@@ -300,8 +300,8 @@ class TransactionBuilderTests: XCTestCase {
         
         XCTAssertEqual(tx.witnesses.count, 2)
         let signers = tx.witnesses.map { try! $0.verificationScript.getPublicKeys().first! }
-        XCTAssert(signers.contains(account1.keyPair!.publicKey))        
-        XCTAssert(signers.contains(account2.keyPair!.publicKey))
+        XCTAssert(signers.contains(account1.publicKey!))
+        XCTAssert(signers.contains(account2.publicKey!))
     }
     
     public func testFailSendingTransactionBecauseItDoesntContainTheRightNumberOfWitnesses() async {

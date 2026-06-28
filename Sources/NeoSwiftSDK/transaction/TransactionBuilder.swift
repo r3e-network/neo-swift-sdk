@@ -343,7 +343,7 @@ public final class TransactionBuilder {
                 guard !acc.isMultiSig else {
                     throw NeoError.illegalState("Transactions with multi-sig signers cannot be signed automatically.")
                 }
-                guard let keyPair = acc.keyPair else {
+                guard let keyPair = acc.secureKeyPair else {
                     throw TransactionError.transactionConfiguration("Cannot create transaction signature because account \(acc.address) does not hold a private key.")
                 }
                 _ = try transaction.addWitness(.create(txBytes, keyPair))

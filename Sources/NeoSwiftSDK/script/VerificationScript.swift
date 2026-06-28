@@ -4,7 +4,7 @@ import Foundation
 /// A verification script is part of a witness and is simply a sequence of neo-vm instructions.
 /// The verification script is the part of a witness that describes what has to be verified such that the witness is valid.
 /// E.g. for a regular signature witness the verification script is made up of a check-signature call and it expects a signature as input.
-public class VerificationScript: NeoSerializable, Hashable {
+public final class VerificationScript: NeoSerializable, Hashable {
     
     /// The verification script as a byte array.
     public let script: Bytes

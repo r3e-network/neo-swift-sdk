@@ -40,6 +40,15 @@ public struct Witness: Hashable {
     public static func create(_ messageToSign: Bytes, _ keyPair: ECKeyPair) throws -> Witness {
         return try Witness(InvocationScript.fromMessageAndKeyPair(messageToSign, keyPair), VerificationScript(keyPair.publicKey))
     }
+
+    /// Creates a witness from the given message using a secure key pair for signing.
+    /// - Parameters:
+    ///   - messageToSign: The message from which the signature is added to the invocation script
+    ///   - keyPair: The secure key pair used for signing. The verification script is created from the public key.
+    /// - Returns: The constructed witness/script.
+    public static func create(_ messageToSign: Bytes, _ keyPair: SecureECKeyPair) throws -> Witness {
+        return try Witness(InvocationScript.fromMessageAndKeyPair(messageToSign, keyPair), VerificationScript(keyPair.publicKey))
+    }
     
     /// Creates a witness in which the invocation script contains the given signatures and the verification script checks the signatures according to the given public keys and signing threshold.
     ///

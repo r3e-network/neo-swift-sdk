@@ -97,7 +97,7 @@ class WalletTests: XCTestCase {
         let account = try! Account.create()
         let wallet = try! Wallet.create()
         _ = try! wallet.addAccounts([account])
-        _ = try! wallet.addAccounts([.init(keyPair: account.keyPair!)])
+        _ = try! wallet.addAccounts([.init(secureKeyPair: account.secureKeyPair!)])
         XCTAssertEqual(wallet.accounts.count, 2)
         XCTAssertIdentical(wallet.getAccount(account.scriptHash!), account)
     }
@@ -195,7 +195,7 @@ class WalletTests: XCTestCase {
         XCTAssertEqual(wallet.version, Wallet.CURRENT_VERSION)
         XCTAssertEqual(wallet.scryptParams, .DEFAULT)
         XCTAssertEqual(wallet.accounts.count, 1)
-        XCTAssertNotNil(wallet.accounts.first?.keyPair)
+        XCTAssertNotNil(wallet.accounts.first?.secureKeyPair)
     }
     
     public func testCreateGenericWalletAndSaveItToDir_withCustomName() {
@@ -251,7 +251,7 @@ class WalletTests: XCTestCase {
         XCTAssertEqual(wallet1.version, wallet2.version)
         XCTAssertEqual(wallet1.scryptParams, wallet2.scryptParams)
         XCTAssertEqual(wallet1.accounts.count, wallet2.accounts.count)
-        XCTAssertNotNil(wallet2.accounts.first?.keyPair)
+        XCTAssertNotNil(wallet2.accounts.first?.secureKeyPair)
         XCTAssert(FileManager.default.fileExists(atPath: tempFile.relativePath))
         try! XCTAssertEqual(wallet1.toNEP6Wallet(), wallet2.toNEP6Wallet())
     }
@@ -263,10 +263,10 @@ class WalletTests: XCTestCase {
         XCTAssertEqual(wallet.scryptParams, .DEFAULT)
         XCTAssertEqual(wallet.accounts.count, 1)
         XCTAssertNotNil(wallet.accounts.first?.encryptedPrivateKey)
-        XCTAssertNil(wallet.accounts.first?.keyPair)
+        XCTAssertNil(wallet.accounts.first?.secureKeyPair)
         
         try! wallet.decryptAllAccounts("12345678")
-        XCTAssertNotNil(wallet.accounts.first?.keyPair)
+        XCTAssertNotNil(wallet.accounts.first?.secureKeyPair)
         XCTAssertNotNil(wallet.accounts.first?.encryptedPrivateKey)
     }
     
@@ -291,11 +291,11 @@ class WalletTests: XCTestCase {
     public func testEncryptWallet() {
         let wallet = try! Wallet.create()
         _ = try! wallet.addAccounts([.create()])
-        XCTAssertNotNil(wallet.accounts[0].keyPair)
-        XCTAssertNotNil(wallet.accounts[1].keyPair)
+        XCTAssertNotNil(wallet.accounts[0].secureKeyPair)
+        XCTAssertNotNil(wallet.accounts[1].secureKeyPair)
         try! wallet.encryptAllAccounts("pw")
-        XCTAssertNil(wallet.accounts[0].keyPair)
-        XCTAssertNil(wallet.accounts[1].keyPair)
+        XCTAssertNil(wallet.accounts[0].secureKeyPair)
+        XCTAssertNil(wallet.accounts[1].secureKeyPair)
     }
     
     public func testGetNep17Balances() async {

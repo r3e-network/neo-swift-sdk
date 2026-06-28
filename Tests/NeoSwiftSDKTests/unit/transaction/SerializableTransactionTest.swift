@@ -253,16 +253,16 @@ class SerializableTransactionTest: XCTestCase {
     
     public func testAddMultiSigWitnessWithPubKeySigMap() async {
         _ = try! rpcClient.config.setNetworkMagic(769)
-        let multiSigAccount = try! Account.createMultiSigAccount([a4.keyPair!.publicKey, a5.keyPair!.publicKey, a6.keyPair!.publicKey], 3)
+        let multiSigAccount = try! Account.createMultiSigAccount([a4.publicKey!, a5.publicKey!, a6.publicKey!], 3)
         let dummyTx = try! NeoTransaction(rpcClient: rpcClient, version: 0, nonce: 0x01020304, validUntilBlock: 0x01020304,
                                               signers: [AccountSigner.calledByEntry(multiSigAccount)],
                                               systemFee: 10.toPowerOf(8), networkFee: 1, attributes: [],
                                               script: [OpCode.push1.opcode], witnesses: [])
         let dummyBytes = try! await dummyTx.getHashData()
-        let sig4 = try! Sign.signMessage(dummyBytes, a4.keyPair!)
-        let sig5 = try! Sign.signMessage(dummyBytes, a5.keyPair!)
-        let sig6 = try! Sign.signMessage(dummyBytes, a6.keyPair!)
-        let keyMap = [a4.keyPair!.publicKey: sig4, a5.keyPair!.publicKey: sig5, a6.keyPair!.publicKey: sig6]
+        let sig4 = try! Sign.signMessage(dummyBytes, a4.secureKeyPair!)
+        let sig5 = try! Sign.signMessage(dummyBytes, a5.secureKeyPair!)
+        let sig6 = try! Sign.signMessage(dummyBytes, a6.secureKeyPair!)
+        let keyMap = [a4.publicKey!: sig4, a5.publicKey!: sig5, a6.publicKey!: sig6]
         _ = try! dummyTx.addMultiSigWitness(multiSigAccount.verificationScript!, keyMap)
         let expectedMultiSigWitness = try! Witness.creatMultiSigWitness([sig4, sig5, sig6], multiSigAccount.verificationScript!)
         XCTAssertEqual(dummyTx.witnesses, [expectedMultiSigWitness])
@@ -270,15 +270,15 @@ class SerializableTransactionTest: XCTestCase {
     
     public func testAddMultiSigWitnessWithAccounts() async {
         _ = try! rpcClient.config.setNetworkMagic(769)
-        let multiSigAccount = try! Account.createMultiSigAccount([a4.keyPair!.publicKey, a5.keyPair!.publicKey, a6.keyPair!.publicKey], 3)
+        let multiSigAccount = try! Account.createMultiSigAccount([a4.publicKey!, a5.publicKey!, a6.publicKey!], 3)
         let dummyTx = try! NeoTransaction(rpcClient: rpcClient, version: 0, nonce: 0x01020304, validUntilBlock: 0x01020304,
                                               signers: [AccountSigner.calledByEntry(multiSigAccount)],
                                               systemFee: 10.toPowerOf(8), networkFee: 1, attributes: [],
                                               script: [OpCode.push1.opcode], witnesses: [])
         let dummyBytes = try! await dummyTx.getHashData()
-        let sig4 = try! Sign.signMessage(dummyBytes, a4.keyPair!)
-        let sig5 = try! Sign.signMessage(dummyBytes, a5.keyPair!)
-        let sig6 = try! Sign.signMessage(dummyBytes, a6.keyPair!)
+        let sig4 = try! Sign.signMessage(dummyBytes, a4.secureKeyPair!)
+        let sig5 = try! Sign.signMessage(dummyBytes, a5.secureKeyPair!)
+        let sig6 = try! Sign.signMessage(dummyBytes, a6.secureKeyPair!)
         _ = try! await dummyTx.addMultiSigWitness(multiSigAccount.verificationScript!, a5, a6, a4)
         _ = try! await dummyTx.addMultiSigWitness(multiSigAccount.verificationScript!, a6, a4, a5)
         let expectedMultiSigWitness = try! Witness.creatMultiSigWitness([sig4, sig5, sig6], multiSigAccount.verificationScript!)
@@ -299,7 +299,7 @@ class SerializableTransactionTest: XCTestCase {
                                               validUntilBlock: 0x01020304, signers: signers,
                                               systemFee: 10.toPowerOf(8), networkFee: 1, attributes: [],
                                               script: [OpCode.push1.opcode], witnesses: [])
-        let account1Witness = try! await Witness.create(tx.getHashData(), singleAccount1.keyPair!)
+        let account1Witness = try! await Witness.create(tx.getHashData(), singleAccount1.secureKeyPair!)
         _ = tx.addWitness(account1Witness)
         let ctx = try! await tx.toContractParametersContext()
         XCTAssertEqual(ctx.type, "Neo.Network.P2P.Payloads.Transaction")
@@ -312,7 +312,7 @@ class SerializableTransactionTest: XCTestCase {
         XCTAssertEqual(item.script, singleAccount1.verificationScript?.script.base64Encoded)
         XCTAssertEqual(item.parameters, [.init(type: .signature, value: account1Witness.invocationScript.getSignatures().first?.concatenated)])
         XCTAssertEqual(item.signatures.count, 1)
-        XCTAssertEqual(try! item.signatures[singleAccount1.keyPair!.publicKey.getEncodedCompressedHex()],
+        XCTAssertEqual(try! item.signatures[singleAccount1.publicKey!.getEncodedCompressedHex()],
                        account1Witness.invocationScript.getSignatures().first!.concatenated.base64Encoded)
         
         let item2 = ctx.items["0x" + singleAccount2.scriptHash!.string]!
@@ -337,7 +337,7 @@ class SerializableTransactionTest: XCTestCase {
                                               validUntilBlock: 0x01020304, signers: signers,
                                               systemFee: 10.toPowerOf(8), networkFee: 1, attributes: [],
                                               script: [OpCode.push1.opcode], witnesses: [])
-        let account1Witness = try! await Witness.create(tx.getHashData(), singleSigAccount1.keyPair!)
+        let account1Witness = try! await Witness.create(tx.getHashData(), singleSigAccount1.secureKeyPair!)
         _ = tx.addWitness(account1Witness)
         
         do {

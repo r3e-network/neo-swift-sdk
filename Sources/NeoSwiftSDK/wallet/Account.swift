@@ -1,14 +1,22 @@
 
-import BigInt
-
 /// Represents a Neo account.
 ///
 /// An account can be a single-signature or multi-signature account.
 /// The latter does not contain EC key material because it is based on multiple EC key pairs.
 public class Account {
     
-    /// This account's EC key pair if available. Nil if the key pair is not available, e.g., the account was encrypted.
-    public private(set) var keyPair: ECKeyPair?
+    /// This account's secure EC key pair if available. Nil if the private key is not available, e.g., the account was encrypted.
+    public private(set) var secureKeyPair: SecureECKeyPair?
+
+    /// This account's EC key pair if available.
+    ///
+    /// Accessing this property exports the private key into ordinary process memory. Prefer ``secureKeyPair`` for signing
+    /// and ``publicKey`` for read-only public key access.
+    @available(*, deprecated, message: "Use secureKeyPair for signing or publicKey for read-only access. This property exports private key bytes into ordinary memory.")
+    public var keyPair: ECKeyPair? {
+        try? exportLegacyKeyPair()
+    }
+
     public let address: String
     public private(set) var label: String?
     public let verificationScript: VerificationScript?
@@ -24,6 +32,19 @@ public class Account {
     
     public var scriptHash: Hash160? {
         return try? getScriptHash()
+    }
+
+    /// This account's public key if it is available from key material or the verification script.
+    public var publicKey: ECPublicKey? {
+        if let secureKeyPair = secureKeyPair {
+            return secureKeyPair.publicKey
+        }
+        return try? verificationScript?.getPublicKeys().first
+    }
+
+    /// `true` if this account currently holds decrypted private key material.
+    public var hasPrivateKey: Bool {
+        secureKeyPair != nil
     }
     
     /// Whether the account is default in the wallet.
@@ -43,10 +64,24 @@ public class Account {
     ///   - signingThreshold: The signing threshold, nil if the account is single-sig
     ///   - nrOfParticipants: The nr of involved keys, nil if the account is single-sig
     public init(keyPair: ECKeyPair, _ signingThreshold: Int? = nil, nrOfParticipants: Int? = nil) throws {
-        self.keyPair = keyPair
+        self.secureKeyPair = try keyPair.toSecureKeyPair()
         self.address = try keyPair.getAddress()
         self.label = address
         self.verificationScript = try .init(keyPair.publicKey)
+        self.signingThreshold = signingThreshold
+        self.nrOfParticipants = nrOfParticipants
+    }
+
+    /// Constructs a new account with the given secure EC key pair.
+    /// - Parameters:
+    ///   - secureKeyPair: The secure key pair of the account
+    ///   - signingThreshold: The signing threshold, nil if the account is single-sig
+    ///   - nrOfParticipants: The nr of involved keys, nil if the account is single-sig
+    public init(secureKeyPair: SecureECKeyPair, _ signingThreshold: Int? = nil, nrOfParticipants: Int? = nil) throws {
+        self.secureKeyPair = secureKeyPair
+        self.address = try secureKeyPair.getAddress()
+        self.label = address
+        self.verificationScript = try .init(secureKeyPair.publicKey)
         self.signingThreshold = signingThreshold
         self.nrOfParticipants = nrOfParticipants
     }
@@ -60,7 +95,7 @@ public class Account {
     }
     
     public init(keyPair: ECKeyPair? = nil, address: String, label: String?, verificationScript: VerificationScript?, isLocked: Bool, encryptedPrivateKey: String? = nil, wallet: Wallet? = nil, signingThreshold: Int?, nrOfParticipants: Int?) {
-        self.keyPair = keyPair
+        self.secureKeyPair = try? keyPair?.toSecureKeyPair()
         self.address = address
         self.label = label
         self.verificationScript = verificationScript
@@ -95,11 +130,11 @@ public class Account {
     ///   - password: The passphrase used to decrypt this account's private key
     ///   - scryptParams: The Scrypt parameters used for decryption
     public func decryptPrivateKey(_ password: String, _ scryptParams: ScryptParams = .DEFAULT) throws {
-        if keyPair != nil { return }
+        if secureKeyPair != nil { return }
         guard let encryptedKey = encryptedPrivateKey else {
             throw WalletError.accountState("The account does not hold an encrypted private key.")
         }
-        keyPair = try NEP2.decrypt(password, encryptedKey, scryptParams)
+        secureKeyPair = try NEP2.decryptSecure(password, encryptedKey, scryptParams)
     }
     
     /// Encrypts this account's private key according to the NEP-2 standard using the default Scrypt parameters.
@@ -107,11 +142,21 @@ public class Account {
     ///   - password: The passphrase used to encrypt this account's private key
     ///   - scryptParams: The Scrypt parameters used for encryption
     public func encryptPrivateKey(_ password: String, _ scryptParams: ScryptParams = .DEFAULT) throws {
-        guard let key = keyPair else {
+        guard let key = secureKeyPair else {
             throw WalletError.accountState("The account does not hold a decrypted private key.")
         }
         encryptedPrivateKey = try NEP2.encrypt(password, key, scryptParams)
-        keyPair = nil
+        secureKeyPair = nil
+    }
+
+    /// Exports the account's decrypted key pair into ordinary process memory.
+    ///
+    /// Prefer ``secureKeyPair`` and SDK signing APIs for normal use. This method exists for interop with legacy APIs.
+    public func exportLegacyKeyPair() throws -> ECKeyPair {
+        guard let key = secureKeyPair else {
+            throw WalletError.accountState("The account does not hold a decrypted private key.")
+        }
+        return try key.toLegacyKeyPair()
     }
     
     public func getScriptHash() throws -> Hash160 {
@@ -146,7 +191,7 @@ public class Account {
     }
     
     public func toNEP6Account() throws -> NEP6Account {
-        if keyPair != nil && encryptedPrivateKey == nil {
+        if secureKeyPair != nil && encryptedPrivateKey == nil {
             throw WalletError.accountState("Account private key is available but not encrypted.")
         }
         guard let verificationScript = verificationScript else {
@@ -214,9 +259,8 @@ public class Account {
     /// - Parameter wif: The WIF of the account
     /// - Returns: The account
     public static func fromWIF(_ wif: String) throws -> Account {
-        let privateKey = try BInt(magnitude: wif.privateKeyFromWIF())
-        let keyPair = try ECKeyPair.create(privateKey: privateKey)
-        return try Account(keyPair: keyPair)
+        let keyPair = try SecureECKeyPair.create(privateKey: wif.privateKeyFromWIF())
+        return try Account(secureKeyPair: keyPair)
     }
     
     /// Creates an account from the provided NEP-6 account.
@@ -264,7 +308,7 @@ public class Account {
     /// - Returns: The new account
     public static func create() throws -> Account {
         do {
-            return try Account(keyPair: .createEcKeyPair())
+            return try Account(secureKeyPair: .createEcKeyPair())
         } catch {
             throw NeoError.runtime("Failed to create a new EC key pair.")
         }

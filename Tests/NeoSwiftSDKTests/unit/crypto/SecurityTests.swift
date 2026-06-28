@@ -115,10 +115,10 @@ final class SecurityTests: XCTestCase {
         XCTAssertEqual(encrypted.count, 58)
         
         // Decrypt
-        let decrypted = try NEP2.decrypt(password, encrypted)
+        let decrypted = try NEP2.decryptSecure(password, encrypted)
         
         // Verify same keys
-        XCTAssertEqual(keyPair.privateKey.bytes, decrypted.privateKey.bytes)
+        XCTAssertEqual(keyPair.privateKey.bytes, try decrypted.withPrivateKeyBytes { $0 })
         XCTAssertEqual(keyPair.publicKey, decrypted.publicKey)
     }
     
@@ -130,7 +130,7 @@ final class SecurityTests: XCTestCase {
         let encrypted = try NEP2.encrypt(password, keyPair)
         
         // Should throw with wrong password
-        XCTAssertThrowsError(try NEP2.decrypt(wrongPassword, encrypted)) { error in
+        XCTAssertThrowsError(try NEP2.decryptSecure(wrongPassword, encrypted)) { error in
             XCTAssertTrue(error is NEP2Error)
         }
     }

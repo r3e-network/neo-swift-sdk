@@ -4,12 +4,24 @@ import Foundation
 /// Class encapsulating a BIP-39 compatible NEO account.
 public class Bip39Account: Account {
     
-    /// Generated BIP-39 mnemonic for the account.
-    public let mnemonic: String
+    private let mnemonicBytes: SecureBytes
     
-    private init(_ keyPair: ECKeyPair, _ mnemonic: String) throws {
-        self.mnemonic = mnemonic
-        try super.init(keyPair: keyPair)
+    private init(_ keyPair: SecureECKeyPair, _ mnemonic: String) throws {
+        self.mnemonicBytes = SecureBytes(Bytes(mnemonic.utf8))
+        try super.init(secureKeyPair: keyPair)
+    }
+
+    /// Exports the BIP-39 recovery phrase.
+    ///
+    /// Treat the returned string as secret material. The SDK keeps the stored phrase in secure memory, but exporting it
+    /// necessarily creates an ordinary Swift `String` for the caller to display, back up, or pass to recovery flows.
+    public func exportMnemonic() throws -> String {
+        var bytes = try mnemonicBytes.toArray()
+        defer { bytes.zeroize() }
+        guard let mnemonic = String(bytes: bytes, encoding: .utf8) else {
+            throw NeoError.illegalState("Stored BIP-39 mnemonic is not valid UTF-8.")
+        }
+        return mnemonic
     }
     
     /// Generates a BIP-39 compatible NEO account. The private key for the wallet can be calculated using following algorithm:\n
@@ -38,8 +50,11 @@ public class Bip39Account: Account {
     /// - Returns: A Bip39Account builder
     public static func fromBip39Mnemonic(_ password: String, _ mnemonic: String) throws -> Bip39Account {
         let normalizedMnemonic = try validatedMnemonic(mnemonic)
-        let seed = try seed(from: normalizedMnemonic, passphrase: password)
-        let keyPair = try ECKeyPair.create(privateKey: seed.sha256())
+        var seed = try seed(from: normalizedMnemonic, passphrase: password)
+        defer { seed.zeroize() }
+        var privateKey = seed.sha256()
+        defer { privateKey.zeroize() }
+        let keyPair = try SecureECKeyPair.create(privateKey: privateKey)
         return try .init(keyPair, normalizedMnemonic)
     }
     
@@ -103,8 +118,12 @@ private extension Bip39Account {
     }
 
     static func seed(from mnemonic: String, passphrase: String) throws -> Bytes {
-        let password = Bytes(normalize(mnemonic).utf8)
-        let salt = Bytes(normalize("mnemonic" + passphrase).utf8)
+        var password = Bytes(normalize(mnemonic).utf8)
+        var salt = Bytes(normalize("mnemonic" + passphrase).utf8)
+        defer {
+            password.zeroize()
+            salt.zeroize()
+        }
         return try PKCS5.PBKDF2(
             password: password,
             salt: salt,
@@ -139,6 +158,18 @@ private extension Bip39Account {
 
     static func normalize(_ string: String) -> String {
         (string as NSString).decomposedStringWithCompatibilityMapping
+    }
+
+}
+
+private extension Array where Element == UInt8 {
+
+    mutating func zeroize() {
+        guard !isEmpty else { return }
+        withUnsafeMutableBufferPointer { buffer in
+            guard let baseAddress = buffer.baseAddress else { return }
+            memset(baseAddress, 0, buffer.count)
+        }
     }
 
 }

@@ -4,7 +4,7 @@ import Foundation
 /// An invocation script is part of a witness and is simply a sequence of neo-vm instructions.
 /// The invocation script usually is the input to the verification script.
 /// In most cases it will contain a signature that is checked in the verification script.
-public class InvocationScript: NeoSerializable, Hashable {
+public final class InvocationScript: NeoSerializable, Hashable {
     
     /// This invocation script as a byte array
     public let script: Bytes
@@ -39,6 +39,15 @@ public class InvocationScript: NeoSerializable, Hashable {
     ///   - keyPair: The key to use for signing
     /// - Returns: The constructed invocation script
     public static func fromMessageAndKeyPair(_ message: Bytes, _ keyPair: ECKeyPair) throws -> InvocationScript {
+        return try .init(ScriptBuilder().pushData(Sign.signMessage(message, keyPair).concatenated).toArray())
+    }
+
+    /// Creates an invocation script from the signature of the given message signed with the given secure key pair.
+    /// - Parameters:
+    ///   - message: The message to sign
+    ///   - keyPair: The secure key to use for signing
+    /// - Returns: The constructed invocation script
+    public static func fromMessageAndKeyPair(_ message: Bytes, _ keyPair: SecureECKeyPair) throws -> InvocationScript {
         return try .init(ScriptBuilder().pushData(Sign.signMessage(message, keyPair).concatenated).toArray())
     }
     

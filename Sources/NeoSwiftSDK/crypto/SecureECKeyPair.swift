@@ -11,9 +11,6 @@ public class SecureECKeyPair {
     /// The public key of this EC key pair
     public let publicKey: ECPublicKey
     
-    /// The underlying ECPrivateKey (created on demand and cleared after use)
-    private var _privateKey: ECPrivateKey?
-    
     private init(securePrivateKey: SecureBytes, publicKey: ECPublicKey) {
         self.securePrivateKey = securePrivateKey
         self.publicKey = publicKey
@@ -21,12 +18,17 @@ public class SecureECKeyPair {
     
     /// Access the private key temporarily for operations
     private func withPrivateKey<Result>(_ body: (ECPrivateKey) throws -> Result) throws -> Result {
-        let privateKey = try ECPrivateKey(securePrivateKey.toArray())
-        defer {
-            // Clear any temporary data
-            _privateKey = nil
-        }
+        var keyBytes = try securePrivateKey.toArray()
+        defer { keyBytes.zeroize() }
+        let privateKey = try ECPrivateKey(keyBytes)
         return try body(privateKey)
+    }
+
+    /// Access a temporary copy of the private key bytes for operations that cannot consume ``SecureBytes`` directly.
+    func withPrivateKeyBytes<Result>(_ body: (Bytes) throws -> Result) throws -> Result {
+        var keyBytes = try securePrivateKey.toArray()
+        defer { keyBytes.zeroize() }
+        return try body(keyBytes)
     }
     
     /// Constructs the NEO address from this key pair's public key.
@@ -86,6 +88,25 @@ public class SecureECKeyPair {
             ECKeyPair(privateKey: privateKey, publicKey: publicKey)
         }
     }
+
+    /// Temporarily creates a legacy ``ECKeyPair`` for APIs that have not yet moved to secure key storage.
+    public func withLegacyKeyPair<Result>(_ body: (ECKeyPair) throws -> Result) throws -> Result {
+        try withPrivateKey { privateKey in
+            try body(ECKeyPair(privateKey: privateKey, publicKey: publicKey))
+        }
+    }
+}
+
+private extension Array where Element == UInt8 {
+
+    mutating func zeroize() {
+        guard !isEmpty else { return }
+        withUnsafeMutableBufferPointer { buffer in
+            guard let baseAddress = buffer.baseAddress else { return }
+            memset(baseAddress, 0, buffer.count)
+        }
+    }
+
 }
 
 /// Extension to provide migration path from ECKeyPair to SecureECKeyPair

@@ -9,7 +9,7 @@ class AccountTests: XCTestCase {
         XCTAssertNotNil(account)
         XCTAssertNotNil(account.address)
         XCTAssertNotNil(account.verificationScript)
-        XCTAssertNotNil(account.keyPair)
+        XCTAssertNotNil(account.secureKeyPair)
         XCTAssertNotNil(account.label)
         XCTAssertNil(account.encryptedPrivateKey)
         XCTAssertFalse(account.isLocked)
@@ -85,9 +85,9 @@ class AccountTests: XCTestCase {
         let nep6Account = NEP6Account(address: "", label: "", isDefault: true, lock: false, key: defaultAccountEncryptedPrivateKey, contract: nil, extra: nil)
         let account = try! Account.fromNEP6Account(nep6Account)
         try! account.decryptPrivateKey(defaultAccountPassword)
-        XCTAssertEqual(account.keyPair?.privateKey, privateKey)
+        XCTAssertEqual(try! account.exportLegacyKeyPair().privateKey, privateKey)
         try! account.decryptPrivateKey(defaultAccountPassword)
-        XCTAssertEqual(account.keyPair?.privateKey, privateKey)
+        XCTAssertEqual(try! account.exportLegacyKeyPair().privateKey, privateKey)
     }
     
     public func testFailDecryptingAccountWithoutDecryptedPrivateKey() {
@@ -167,7 +167,7 @@ class AccountTests: XCTestCase {
     public func testCreateAccountFromWIF() {
         let account = try! Account.fromWIF(defaultAccountWIF)
         let expectedKeyPair = try! ECKeyPair.create(privateKey: defaultAccountPrivateKey.bytesFromHex)
-        XCTAssertEqual(account.keyPair, expectedKeyPair)
+        XCTAssertEqual(try! account.exportLegacyKeyPair(), expectedKeyPair)
         XCTAssertEqual(account.address, defaultAccountAddress)
         XCTAssertEqual(account.label, defaultAccountAddress)
         XCTAssertNil(account.encryptedPrivateKey)

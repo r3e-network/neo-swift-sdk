@@ -33,11 +33,25 @@ public enum Sign {
     /// - Returns: The signature data
     public static func signMessage(_ message: Bytes, _ keyPair: ECKeyPair) throws -> SignatureData {
         let sig = keyPair.signAndGetECDSASignature(messageHash: message)
+        return try signatureData(message: message, signature: sig, publicKey: keyPair.publicKey)
+    }
+
+    /// Signs the hash SHA256 of the message with the private key of the provided ``SecureECKeyPair``.
+    /// - Parameters:
+    ///   - message: The message to sign
+    ///   - keyPair: The secure key pair that holds the private key used to sign the message
+    /// - Returns: The signature data
+    public static func signMessage(_ message: Bytes, _ keyPair: SecureECKeyPair) throws -> SignatureData {
+        let sig = try keyPair.signAndGetECDSASignature(messageHash: message)
+        return try signatureData(message: message, signature: sig, publicKey: keyPair.publicKey)
+    }
+
+    private static func signatureData(message: Bytes, signature sig: ECDSASignature, publicKey: ECPublicKey) throws -> SignatureData {
         var recId: Int = -1
         
         for i in 0...3 {
             if let k = try recoverFromSignature(recId: i, sig: sig, message: message.sha256()),
-               k == keyPair.publicKey {
+               k == publicKey {
                 recId = i
                 break
             }
@@ -48,7 +62,6 @@ public enum Sign {
         return try SignatureData(v: Byte(recId + 27),
                              r: sig.r.toBytesPadded(length: 32),
                              s: sig.s.toBytesPadded(length: 32))
-        
     }
     
     /// Given the components of a signature and a selector value, recover and return the public key that generated the signature according to the algorithm in SEC1v2 section 4.1.6.

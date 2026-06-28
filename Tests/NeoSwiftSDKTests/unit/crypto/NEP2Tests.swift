@@ -6,7 +6,7 @@ class NEP2Tests: XCTestCase {
  
     func testDecryptWithDefaultScryptParams() {
         XCTAssertEqual(
-            try? NEP2.decrypt(defaultAccountPassword, defaultAccountEncryptedPrivateKey).privateKey.bytes,
+            try? NEP2.decryptSecure(defaultAccountPassword, defaultAccountEncryptedPrivateKey).withPrivateKeyBytes { $0 },
             defaultAccountPrivateKey.bytesFromHex
         )
     }
@@ -15,7 +15,7 @@ class NEP2Tests: XCTestCase {
         let params = ScryptParams(256, 1, 1)
         let encrypted = "6PYM7jHL3uwhP8uuHP9fMGMfJxfyQbanUZPQEh1772iyb7vRnUkbkZmdRT"
         XCTAssertEqual(
-            try? NEP2.decrypt(defaultAccountPassword, encrypted, params).privateKey.bytes,
+            try? NEP2.decryptSecure(defaultAccountPassword, encrypted, params).withPrivateKeyBytes { $0 },
             defaultAccountPrivateKey.bytesFromHex
         )
     }
