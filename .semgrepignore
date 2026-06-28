@@ -1,0 +1,4 @@
+Vendor/SwiftECC/README.md
+Vendor/SwiftECC/Tests/SwiftECCTests/BlueTest.swift
+Vendor/SwiftECC/Tests/SwiftECCTests/ExceptionTest.swift
+Vendor/SwiftECC/Tests/SwiftECCTests/KeysEncryptedTest.swift

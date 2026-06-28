@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 import json
+import http.client
 import sys
-import urllib.error
-import urllib.request
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 OSV_QUERY_URL = "https://api.osv.dev/v1/query"
@@ -28,14 +28,27 @@ def query_osv(name: str, version: str) -> list[dict[str, object]]:
             "name": name,
         },
     }
-    request = urllib.request.Request(
-        OSV_QUERY_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        body = json.loads(response.read().decode("utf-8"))
+    endpoint = urlparse(OSV_QUERY_URL)
+    body = json.dumps(payload).encode("utf-8")
+    # OSV_QUERY_URL is a hard-coded HTTPS endpoint. Python 3 on GitHub-hosted
+    # runners verifies certificates by default for HTTPSConnection.
+    connection = http.client.HTTPSConnection(endpoint.netloc, timeout=30)  # nosemgrep: python.lang.security.audit.httpsconnection-detected.httpsconnection-detected
+    try:
+        connection.request(
+            "POST",
+            endpoint.path,
+            body=body,
+            headers={"Content-Type": "application/json"},
+        )
+        response = connection.getresponse()
+        response_body = response.read().decode("utf-8")
+    finally:
+        connection.close()
+
+    if response.status >= 400:
+        raise RuntimeError(f"OSV returned HTTP {response.status}: {response_body}")
+
+    body = json.loads(response_body)
     return body.get("vulns", [])
 
 
@@ -60,7 +73,10 @@ def main() -> int:
         for name in package_names(location):
             try:
                 vulns.extend(query_osv(name, version))
-            except urllib.error.URLError as error:
+            except OSError as error:
+                print(f"OSV query failed for {location}@{version}: {error}", file=sys.stderr)
+                return 2
+            except RuntimeError as error:
                 print(f"OSV query failed for {location}@{version}: {error}", file=sys.stderr)
                 return 2
         if vulns:

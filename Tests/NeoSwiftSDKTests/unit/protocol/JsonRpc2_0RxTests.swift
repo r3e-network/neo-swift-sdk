@@ -60,8 +60,8 @@ class JsonRpc2_0RxTests: XCTestCase {
         let neoGetBlocks = [MockBlocks.createBlock(0), MockBlocks.createBlock(1), MockBlocks.createBlock(2), MockBlocks.createBlock(3),
                             MockBlocks.createBlock(4), MockBlocks.createBlock(5), MockBlocks.createBlock(6)]
         
-        var blockCount = NeoBlockCount(4)
-        _ = mockUrlSession.data(["getblockcount": [encode(blockCount)], "getblockheader": neoGetBlocks.map { encode($0) }])
+        let blockCounts = (4...7).map { encode(NeoBlockCount($0)) }
+        _ = mockUrlSession.data(["getblockcount": blockCounts, "getblockheader": neoGetBlocks.map { encode($0) }])
         
         let publisher = rpcClient.catchUpToLatestAndSubscribeToNewBlocksPublisher(0, false)
         let expectation = XCTestExpectation()
@@ -76,14 +76,6 @@ class JsonRpc2_0RxTests: XCTestCase {
         
         cancellable.store(in: &cancellables)
         
-        DispatchQueue.global().async {
-            (4..<7).forEach { _ in
-                Thread.sleep(forTimeInterval: 2)
-                blockCount = NeoBlockCount(blockCount.blockCount! + 1)
-                _ = self.mockUrlSession.data(["getblockcount": [self.encode(blockCount)]])
-            }
-        }
-        
         _ = XCTWaiter.wait(for: [expectation], timeout: 10)
         
         let receivedBlocks = results.map(\.block!)
@@ -95,8 +87,8 @@ class JsonRpc2_0RxTests: XCTestCase {
     public func testSubscribeToNewBlockObservable() {
         let neoGetBlocks = [MockBlocks.createBlock(0), MockBlocks.createBlock(1), MockBlocks.createBlock(2), MockBlocks.createBlock(3)]
         
-        var blockCount = NeoBlockCount(0)
-        _ = mockUrlSession.data(["getblockcount": [encode(blockCount)], "getblockheader": neoGetBlocks.map { encode($0) }])
+        let blockCounts = (1...4).map { encode(NeoBlockCount($0)) }
+        _ = mockUrlSession.data(["getblockcount": blockCounts, "getblockheader": neoGetBlocks.map { encode($0) }])
         
         let publisher = rpcClient.subscribeToNewBlocksPublisher(false)
         let expectation = XCTestExpectation()
@@ -110,14 +102,6 @@ class JsonRpc2_0RxTests: XCTestCase {
         } receiveValue: { results.append($0) }
         
         cancellable.store(in: &cancellables)
-        
-        DispatchQueue.global().async {
-            (0..<4).forEach { _ in
-                Thread.sleep(forTimeInterval: 2)
-                blockCount = NeoBlockCount(blockCount.blockCount! + 1)
-                _ = self.mockUrlSession.data(["getblockcount": [self.encode(blockCount)]])
-            }
-        }
         
         _ = XCTWaiter.wait(for: [expectation], timeout: 10)
         
