@@ -57,8 +57,50 @@ class HttpServiceTests: XCTestCase {
             _ = try await httpService.send(request)
             XCTFail("No exception")
         } catch {
-            XCTAssertEqual(error.localizedDescription, "HTTP 503 Service Unavailable: node unavailable")
+            XCTAssert(error.localizedDescription.contains("HTTP 503"))
+            XCTAssert(error.localizedDescription.contains("Response body omitted"))
+            XCTAssertFalse(error.localizedDescription.contains("node unavailable"))
         }
+    }
+
+    public func testRejectsNonLocalPlaintextHTTPByDefault() async {
+        let httpService = HttpService(url: URL(string: "http://example.com")!, urlSession: MockURLSession())
+        let request = Request<Response<NeoBlockCount>, NeoBlockCount>(method: "getblockcount", params: [], service: httpService)
+
+        do {
+            _ = try await httpService.send(request)
+            XCTFail("No exception")
+        } catch {
+            XCTAssert(error.localizedDescription.contains("Refusing plaintext HTTP transport"))
+            XCTAssert(error.localizedDescription.contains("http://example.com"))
+        }
+    }
+
+    public func testAllowsLocalPlaintextHTTP() async throws {
+        let json = #"{"jsonrpc":"2.0","id":1,"result":1000}"#
+        let httpService = HttpService(
+            url: URL(string: "http://127.0.0.1:10332")!,
+            urlSession: MockURLSession().data(Data(json.utf8))
+        )
+        let request = Request<NeoBlockCount, Int>(method: "getblockcount", params: [], service: httpService)
+
+        let response = try await httpService.send(request)
+
+        XCTAssertEqual(try response.getResult(), 1000)
+    }
+
+    public func testAllowsExplicitInsecurePlaintextHTTP() async throws {
+        let json = #"{"jsonrpc":"2.0","id":1,"result":1000}"#
+        let httpService = HttpService(
+            url: URL(string: "http://example.com")!,
+            urlSession: MockURLSession().data(Data(json.utf8)),
+            allowInsecureConnections: true
+        )
+        let request = Request<NeoBlockCount, Int>(method: "getblockcount", params: [], service: httpService)
+
+        let response = try await httpService.send(request)
+
+        XCTAssertEqual(try response.getResult(), 1000)
     }
 
     public func testRequestTimeoutConfiguration() async throws {

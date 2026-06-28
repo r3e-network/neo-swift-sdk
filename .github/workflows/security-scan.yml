@@ -28,15 +28,19 @@ jobs:
       - name: Build with warnings as errors
         run: swift build -Xswiftc -warnings-as-errors
 
-      - name: Run security tests
-        run: swift test --filter SecurityTests
+      - name: Run tests with warnings as errors
+        run: swift test -Xswiftc -warnings-as-errors
 
-      - name: Check for obvious committed secrets
-        run: |
-          if git grep -n -I -E '(private[_-]?key|password|secret|token)[[:space:]]*=[[:space:]]*"' -- Sources; then
-            echo "Potential committed secret found."
-            exit 1
-          fi
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Dependency vulnerability scan
+        uses: google/osv-scanner-action/osv-scanner-action@v2.3.8
+        with:
+          scan-args: |-
+            --lockfile=Package.resolved
 
       - name: Semgrep
         uses: semgrep/semgrep-action@v1

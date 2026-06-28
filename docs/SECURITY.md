@@ -30,6 +30,8 @@ Use HTTPS endpoints in production:
 let client = NeoClient(endpoint: URL(string: "https://mainnet1.neo.coz.io:443")!)
 ```
 
+Non-local plaintext HTTP endpoints are rejected by default. Only set `allowInsecureConnections: true` for trusted development networks.
+
 When using the request-builder API:
 
 ```swift
@@ -66,8 +68,7 @@ let signed = try await client.signMessage(input: .init(
 ## Dependency And CI Hygiene
 
 - Keep dependency ranges bounded.
-- Run `swift test` before release.
-- Run security-focused tests with `swift test --filter SecurityTests`.
+- Run `swift test -Xswiftc -warnings-as-errors` before release.
 - Scan commits for credentials before pushing.
 - Keep release artifacts and coverage uploads free of wallet fixtures.
 

@@ -25,6 +25,7 @@ public class HttpService: Service {
     public let url: URL
     public let includeRawResponses: Bool
     public let requestTimeout: TimeInterval
+    public let allowInsecureConnections: Bool
     public private(set) var headers = [String: String]()
     
     private var urlRequester: URLRequester
@@ -35,14 +36,17 @@ public class HttpService: Service {
     ///   - urlSession: (For mocking) The URLRequester (URLSession) with which to make the request
     ///   - includeRawResponses: Option to include or not raw responses on the ``Response`` object
     ///   - requestTimeout: Request timeout in seconds.
-    public init(url: URL = HttpService.DEFAULT_URL, urlSession: URLRequester = URLSession.shared, includeRawResponses: Bool = false, requestTimeout: TimeInterval = 30) {
+    ///   - allowInsecureConnections: Allows non-local plaintext HTTP endpoints. Keep this `false` for production.
+    public init(url: URL = HttpService.DEFAULT_URL, urlSession: URLRequester = URLSession.shared, includeRawResponses: Bool = false, requestTimeout: TimeInterval = 30, allowInsecureConnections: Bool = false) {
         self.url = url
         self.urlRequester = urlSession
         self.includeRawResponses = includeRawResponses
         self.requestTimeout = requestTimeout
+        self.allowInsecureConnections = allowInsecureConnections
     }
     
     public func performIO(_ payload: Data) async throws -> Data {
+        try validateTransportSecurity()
         var request = URLRequest(url: url, timeoutInterval: requestTimeout)
         request.addValue(HttpService.JSON_MEDIA_TYPE, forHTTPHeaderField: "Content-Type")
         headers.forEach { request.addValue($1, forHTTPHeaderField: $0) }
@@ -52,8 +56,8 @@ public class HttpService: Service {
             let (data, response) = try await urlRequester.data(from: request)
             if let httpResponse = response as? HTTPURLResponse,
                !(200..<300).contains(httpResponse.statusCode) {
-                let body = String(data: data, encoding: .utf8) ?? "<non-utf8 body>"
-                throw ProtocolError.clientConnection("HTTP \(httpResponse.statusCode) \(HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)): \(body)")
+                let reason = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
+                throw ProtocolError.clientConnection("HTTP \(httpResponse.statusCode) \(reason). Response body omitted to avoid leaking RPC secrets (\(data.count) bytes).")
             }
             return data
         } catch let error as URLError {
@@ -78,7 +82,37 @@ public class HttpService: Service {
     internal func setURLSession(_ urlSession: URLSession) {
         self.urlRequester = urlSession
     }
+
+    private func validateTransportSecurity() throws {
+        guard url.scheme?.lowercased() == "http", !allowInsecureConnections, !url.isLocalRpcEndpoint else {
+            return
+        }
+        throw ProtocolError.clientConnection("Refusing plaintext HTTP transport for non-local Neo RPC endpoint \(url.redactedEndpointDescription). Use HTTPS or explicitly set allowInsecureConnections for trusted development networks.")
+    }
     
+}
+
+private extension URL {
+
+    var isLocalRpcEndpoint: Bool {
+        guard let host = host?.lowercased() else {
+            return false
+        }
+        return host == "localhost"
+            || host.hasSuffix(".localhost")
+            || host == "127.0.0.1"
+            || host == "::1"
+    }
+
+    var redactedEndpointDescription: String {
+        var components = URLComponents(url: self, resolvingAgainstBaseURL: false)
+        components?.user = nil
+        components?.password = nil
+        components?.query = nil
+        components?.fragment = nil
+        return components?.string ?? "\(scheme ?? "unknown")://<redacted>"
+    }
+
 }
 
 public protocol URLRequester {
