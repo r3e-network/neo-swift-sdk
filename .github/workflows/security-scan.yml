@@ -32,9 +32,11 @@ jobs:
         run: swift test -Xswiftc -warnings-as-errors
 
       - name: Secret scan
-        uses: gitleaks/gitleaks-action@v2.3.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1 \
+            dir /repo --redact --exit-code=1
 
       - name: Dependency vulnerability scan
         uses: google/osv-scanner-action/osv-scanner-action@v2.3.8

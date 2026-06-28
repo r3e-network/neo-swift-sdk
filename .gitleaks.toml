@@ -1,0 +1,23 @@
+title = "neo-swift-sdk gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public test vectors, vendored cryptography examples, and generated local artifacts."
+paths = [
+  '''(^|/)\.build/''',
+  '''(^|/)neo_csharp/''',
+  '''(^|/)Vendor/SwiftECC/README\.md$''',
+  '''(^|/)Vendor/SwiftECC/Tests/SwiftECCTests/(BlueTest|ExceptionTest|KeysEncryptedTest)\.swift$''',
+  '''(^|/)Tests/NeoSwiftSDKTests/unit/TestProperties\.swift$''',
+  '''(^|/)Tests/NeoSwiftSDKTests/unit/contract/(FungibleTokenTests|NeoNameServiceTests|NeoTokenTests|RoleManagementTests)\.swift$''',
+  '''(^|/)Tests/NeoSwiftSDKTests/unit/crypto/(ECKeyPairTests|WIFTests)\.swift$''',
+  '''(^|/)Tests/NeoSwiftSDKTests/unit/protocol/ResponseTests\.swift$''',
+  '''(^|/)Tests/NeoSwiftSDKTests/unit/protocol/core/ContractManifestTests\.swift$''',
+  '''(^|/)Tests/NeoSwiftSDKTests/unit/resources/(test-credentials\.json|wallet/(account|wallet|wallet_noDefaultAccount)\.json)$''',
+  '''(^|/)Tests/NeoSwiftSDKTests/unit/script/(ScriptBuilderTests|VerificationScriptTests)\.swift$''',
+  '''(^|/)Tests/NeoSwiftSDKTests/unit/transaction/(TransactionBuilderTests|WitnessTests)\.swift$''',
+  '''(^|/)Tests/NeoSwiftSDKTests/unit/types/Hash160Tests\.swift$''',
+  '''(^|/)Tests/NeoSwiftSDKTests/unit/wallet/(NEP6WalletTests|WalletTests)\.swift$'''
+]
