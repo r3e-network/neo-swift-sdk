@@ -641,7 +641,7 @@ class TransactionBuilderTests: XCTestCase {
     }
     
 #if canImport(Combine)
-    public func testTrackingTransactionShouldReturnCorrectBlock() {
+    public func testTrackingTransactionShouldReturnCorrectBlock() async throws {
         let invokeJson = JSON.from("invokescript_transfer_with_fixed_sysfee")
         let rawTransactionJson = JSON.from("sendrawtransaction")
         let networkFeeJson = JSON.from("calculatenetworkfee")
@@ -659,24 +659,22 @@ class TransactionBuilderTests: XCTestCase {
         
         let expectation = XCTestExpectation()
         let blockNum = Counter()
+        var cancellables: Set<AnyCancellable> = []
 
-        Task {
-            let tx = try! await TransactionBuilder(rpcClient)
-                .script(script).nonce(0)
-                .signers(AccountSigner.calledByEntry(account1))
-                .sign()
-            
-            var cancellables: Set<AnyCancellable> = []
-            
-            _ = try! await tx.send()
-            _ = try! tx.track().sink(receiveCompletion: { completion in
-                switch completion {
-                case .finished: expectation.fulfill()
-                case .failure(let error): XCTFail(error.localizedDescription)
-                }
-            }, receiveValue: blockNum.set).store(in: &cancellables)
-        }
-        _ = XCTWaiter.wait(for: [expectation], timeout: 100)
+        let tx = try await TransactionBuilder(rpcClient)
+            .script(script).nonce(0)
+            .signers(AccountSigner.calledByEntry(account1))
+            .sign()
+
+        _ = try await tx.send()
+        try tx.track().sink(receiveCompletion: { completion in
+            switch completion {
+            case .finished: expectation.fulfill()
+            case .failure(let error): XCTFail(error.localizedDescription)
+            }
+        }, receiveValue: blockNum.set).store(in: &cancellables)
+
+        await fulfillment(of: [expectation], timeout: 100)
         XCTAssertEqual(blockNum.value, 1002)
     }
     
