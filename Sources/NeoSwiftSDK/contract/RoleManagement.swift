@@ -22,7 +22,8 @@ public class RoleManagement: SmartContract {
     public func getDesignatedByRole(_ role: Role, blockIndex: Int) async throws -> [ECPublicKey] {
         try await checkBlockIndexValidity(blockIndex)
         let invocation = try await callInvokeFunction(RoleManagement.GET_DESIGNATED_BY_ROLE, [.integer(role.byte), .integer(blockIndex)])
-        guard let arrayOfDesignates = try invocation.getResult().stack[0].list else {
+        let stack = try invocation.getResult().stack
+        guard let firstItem = stack.first, let arrayOfDesignates = firstItem.list else {
             throw NeoError.illegalState("The invocation result did not have a list of roles")
         }
         return try arrayOfDesignates.map { try .init($0.getByteArray()) }

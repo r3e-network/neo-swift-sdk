@@ -45,6 +45,7 @@ class StackItemTest: XCTestCase {
         let item3 = decode("{\"type\":\"ByteString\", \"value\":\"1Cz3qTHOPEZVD9kN5IJYP8XqcBo=\"}")
         XCTAssertEqual(item3, .byteString("d42cf7a931ce3c46550fd90de482583fc5ea701a".bytesFromHex))
         XCTAssertEqual(item3.address, "NfFrJpFaLPCVuRRPhmBYRmZqSQLJ5fPuhz")
+        XCTAssertEqual(item3.address(addressVersion: 0x17), "Ab7kmZJw2yJDNREnyBByt1QEZGbzj9uBf1")
         XCTAssertEqual(item3.hexString, "d42cf7a931ce3c46550fd90de482583fc5ea701a")
         XCTAssertEqual(item3.byteArray, "d42cf7a931ce3c46550fd90de482583fc5ea701a".bytesFromHex)
     }

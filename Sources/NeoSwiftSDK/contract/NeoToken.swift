@@ -141,6 +141,9 @@ public class NeoToken: FungibleToken {
     
     private func candidateMapper(_ stackItem: StackItem) throws -> Candidate {
         let list = try stackItem.getList()
+        guard list.count >= 2 else {
+            throw NeoError.deserialization("Candidate stack item must contain public key and vote count.")
+        }
         return try .init(publicKey: .init(list[0].getByteArray()), votes: list[1].getInteger())
     }
     

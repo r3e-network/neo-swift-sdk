@@ -95,9 +95,9 @@ public class NeoRpcClient: Neo {
     }
 
     private func syncConfigFromVersion(_ protocolConfig: NeoGetVersion.NeoVersion.NeoProtocol) {
-        if NeoRpcClientConfiguration.addressVersion == NeoRpcClientConfiguration.DEFAULT_ADDRESS_VERSION,
+        if config.addressVersion == NeoRpcClientConfiguration.DEFAULT_ADDRESS_VERSION,
            protocolConfig.addressVersion >= 0 && protocolConfig.addressVersion <= 0xFF {
-            NeoRpcClientConfiguration.setAddressVersion(Byte(protocolConfig.addressVersion))
+            _ = config.setAddressVersion(Byte(protocolConfig.addressVersion))
         }
         if config.blockInterval == NeoRpcClientConfiguration.DEFAULT_BLOCK_TIME {
             _ = config.setBlockInterval(protocolConfig.msPerBlock)
@@ -105,6 +105,14 @@ public class NeoRpcClient: Neo {
         if config.maxValidUntilBlockIncrement == NeoRpcClientConfiguration.MAX_VALID_UNTIL_BLOCK_INCREMENT_BASE / NeoRpcClientConfiguration.DEFAULT_BLOCK_TIME {
             _ = config.setMaxValidUntilBlockIncrement(protocolConfig.maxValidUntilBlockIncrement)
         }
+    }
+
+    private func address(_ scriptHash: Hash160) -> String {
+        scriptHash.toAddress(addressVersion: config.addressVersion)
+    }
+
+    private func scriptHash(from address: String) throws -> Hash160 {
+        try Hash160.fromAddress(address, addressVersion: config.addressVersion)
     }
     
     // MARK: Blockchain Methods
@@ -492,7 +500,7 @@ public class NeoRpcClient: Neo {
     /// - Parameter scriptHash: The account's script hash
     /// - Returns: The request object
     public func getUnclaimedGas(_ scriptHash: Hash160) -> Request<NeoGetUnclaimedGas, NeoGetUnclaimedGas.GetUnclaimedGas> {
-        return .init(method: "getunclaimedgas", params: [scriptHash.toAddress()], service: service)
+        return .init(method: "getunclaimedgas", params: [address(scriptHash)], service: service)
     }
     
     // MARK: Utilities Methods
@@ -522,7 +530,7 @@ public class NeoRpcClient: Neo {
     /// - Parameter scriptHash: The account's script hash
     /// - Returns: The request object
     public func dumpPrivKey(_ scriptHash: Hash160) -> Request<NeoDumpPrivKey, String> {
-        return .init(method: "dumpprivkey", params: [scriptHash.toAddress()], service: service)
+        return .init(method: "dumpprivkey", params: [address(scriptHash)], service: service)
     }
     
     /// Signs a message with all standard accounts in the opened wallet.
@@ -629,7 +637,7 @@ public class NeoRpcClient: Neo {
     ///   - amount: The transfer amount in token fractions
     /// - Returns: The request object
     public func sendFrom(_ tokenHash: Hash160, _ from: Hash160, _ to: Hash160, _ amount: Int) -> Request<NeoSendFrom, Transaction> {
-        return .init(method: "sendfrom", params: [tokenHash.string, from.toAddress(), to.toAddress(), amount], service: service)
+        return .init(method: "sendfrom", params: [tokenHash.string, address(from), address(to), amount], service: service)
     }
     
     /// Transfers an amount of a token from an account to another account.
@@ -638,7 +646,7 @@ public class NeoRpcClient: Neo {
     ///   - txSendToken: A ``TransactionSendToken`` object containing the token hash, the transferring account's script hash and the transfer amount.
     /// - Returns: The request object
     public func sendFrom(_ from: Hash160, _ txSendToken: TransactionSendToken) throws -> Request<NeoSendFrom, Transaction> {
-        return try sendFrom(txSendToken.token, from, Hash160.fromAddress(txSendToken.address), txSendToken.value)
+        return try sendFrom(txSendToken.token, from, scriptHash(from: txSendToken.address), txSendToken.value)
     }
     
     /// Initiates multiple transfers to multiple accounts from the open wallet in a transaction.
@@ -654,7 +662,7 @@ public class NeoRpcClient: Neo {
     ///   - txSendTokens: a list of ``TransactionSendToken`` objects, that each contains the token hash, the recipient and the transfer amount.
     /// - Returns: The request object
     public func sendMany(_ from: Hash160, _ txSendTokens: [TransactionSendToken]) -> Request<NeoSendMany, Transaction> {
-        return .init(method: "sendmany", params: [from.toAddress(), txSendTokens], service: service)
+        return .init(method: "sendmany", params: [address(from), txSendTokens], service: service)
     }
     
     /// Transfers an amount of a token to another account.
@@ -664,14 +672,14 @@ public class NeoRpcClient: Neo {
     ///   - amount: The transfer amount in token fractions
     /// - Returns: The request object
     public func sendToAddress(_ tokenHash: Hash160, _ to: Hash160, _ amount: Int) -> Request<NeoSendToAddress, Transaction> {
-        return .init(method: "sendtoaddress", params: [tokenHash.string, to.toAddress(), amount], service: service)
+        return .init(method: "sendtoaddress", params: [tokenHash.string, address(to), amount], service: service)
     }
     
     /// Transfers an amount of a token asset to another address.
     ///   - txSendToken: A ``TransactionSendToken`` object containing the token hash, the recipient and the transfer amount.
     /// - Returns: The request object
     public func sendToAddress(_ txSendToken: TransactionSendToken) throws -> Request<NeoSendToAddress, Transaction> {
-        return try sendToAddress(txSendToken.token, Hash160.fromAddress(txSendToken.address), txSendToken.value)
+        return try sendToAddress(txSendToken.token, scriptHash(from: txSendToken.address), txSendToken.value)
     }
     
     // MARK: ApplicationLogs
@@ -689,14 +697,14 @@ public class NeoRpcClient: Neo {
     /// - Parameter scriptHash: The account's script hash
     /// - Returns: The request object
     public func getNep17Balances(_ scriptHash: Hash160) -> Request<NeoGetNep17Balances, NeoGetNep17Balances.Nep17Balances> {
-        return .init(method: "getnep17balances", params: [scriptHash.toAddress()], service: service)
+        return .init(method: "getnep17balances", params: [address(scriptHash)], service: service)
     }
     
     /// Gets all the NEP-17 transaction information occurred in the specified script hash.
     /// - Parameter scriptHash: The account's script hash
     /// - Returns: The request object
     public func getNep17Transfers(_ scriptHash: Hash160) -> Request<NeoGetNep17Transfers, NeoGetNep17Transfers.Nep17Transfers> {
-        return .init(method: "getnep17transfers", params: [scriptHash.toAddress()], service: service)
+        return .init(method: "getnep17transfers", params: [address(scriptHash)], service: service)
     }
     
     /// Gets all the NEP17 transaction information occurred in the specified script hash since the specified time.
@@ -705,7 +713,7 @@ public class NeoRpcClient: Neo {
     ///   - from: The timestamp transactions occurred since
     /// - Returns: The request object
     public func getNep17Transfers(_ scriptHash: Hash160, _ from: Date) -> Request<NeoGetNep17Transfers, NeoGetNep17Transfers.Nep17Transfers> {
-        return .init(method: "getnep17transfers", params: [scriptHash.toAddress(), from.millisecondsSince1970], service: service)
+        return .init(method: "getnep17transfers", params: [address(scriptHash), from.millisecondsSince1970], service: service)
     }
     
     /// Gets all the NEP17 transaction information occurred in the specified script hash in the specified time range.
@@ -715,7 +723,7 @@ public class NeoRpcClient: Neo {
     ///   - to: The end timestamp
     /// - Returns: The request object
     public func getNep17Transfers(_ scriptHash: Hash160, _ from: Date, _ to: Date) -> Request<NeoGetNep17Transfers, NeoGetNep17Transfers.Nep17Transfers> {
-        return .init(method: "getnep17transfers", params: [scriptHash.toAddress(), from.millisecondsSince1970, to.millisecondsSince1970], service: service)
+        return .init(method: "getnep17transfers", params: [address(scriptHash), from.millisecondsSince1970, to.millisecondsSince1970], service: service)
     }
     
     // MARK: TokenTracker NEP-11
@@ -724,14 +732,14 @@ public class NeoRpcClient: Neo {
     /// - Parameter scriptHash: The account's script hash
     /// - Returns: The request object
     public func getNep11Balances(_ scriptHash: Hash160) -> Request<NeoGetNep11Balances, NeoGetNep11Balances.Nep11Balances> {
-        return .init(method: "getnep11balances", params: [scriptHash.toAddress()], service: service)
+        return .init(method: "getnep11balances", params: [address(scriptHash)], service: service)
     }
     
     /// Gets all NEP-11 transaction of the given account.
     /// - Parameter scriptHash: The account's script hash
     /// - Returns: The request object
     public func getNep11Transfers(_ scriptHash: Hash160) -> Request<NeoGetNep11Transfers, NeoGetNep11Transfers.Nep11Transfers> {
-        return .init(method: "getnep11transfers", params: [scriptHash.toAddress()], service: service)
+        return .init(method: "getnep11transfers", params: [address(scriptHash)], service: service)
     }
     
     /// Gets all NEP-11 transaction of the given account since the given time.
@@ -740,7 +748,7 @@ public class NeoRpcClient: Neo {
     ///   - from: The date from when to report transactions
     /// - Returns: The request object
     public func getNep11Transfers(_ scriptHash: Hash160, _ from: Date) -> Request<NeoGetNep11Transfers, NeoGetNep11Transfers.Nep11Transfers> {
-        return .init(method: "getnep11transfers", params: [scriptHash.toAddress(), from.millisecondsSince1970], service: service)
+        return .init(method: "getnep11transfers", params: [address(scriptHash), from.millisecondsSince1970], service: service)
     }
     
     /// Gets all NEP-11 transactions of the given account in the time span between `from` and `to`.
@@ -750,7 +758,7 @@ public class NeoRpcClient: Neo {
     ///   - to: The end timestamp
     /// - Returns: The request object
     public func getNep11Transfers(_ scriptHash: Hash160, _ from: Date, _ to: Date) -> Request<NeoGetNep11Transfers, NeoGetNep11Transfers.Nep11Transfers> {
-        return .init(method: "getnep11transfers", params: [scriptHash.toAddress(), from.millisecondsSince1970, to.millisecondsSince1970], service: service)
+        return .init(method: "getnep11transfers", params: [address(scriptHash), from.millisecondsSince1970, to.millisecondsSince1970], service: service)
     }
     
     /// Gets the properties of the token with `tokenId` from the NEP-11 contract with `scriptHash`.
@@ -765,7 +773,7 @@ public class NeoRpcClient: Neo {
     ///   - tokenId: The ID of the token as a hexadecimal string
     /// - Returns: The request object
     public func getNep11Properties(_ scriptHash: Hash160, _ tokenId: String) -> Request<NeoGetNep11Properties, [String : String]> {
-        return .init(method: "getnep11properties", params: [scriptHash.toAddress(), tokenId], service: service)
+        return .init(method: "getnep11properties", params: [address(scriptHash), tokenId], service: service)
     }
     
     // MARK: StateService

@@ -79,7 +79,7 @@ class ContractManifestTests: XCTestCase {
         XCTAssertEqual(contractManifest.groups.count, 1)
         
         let deploySender = try! Hash160("f3e641ce66b1276119296da872f5e97c11538bcb")
-        let group2KeyPair = try! Account.fromWIF("L2v2C2RenZgZLRSFSTVK4Ngk68E8PDXVQvJ1ijTp92EasBvXk7R7").keyPair!
+        let group2KeyPair = try! Account.fromWIF("L2v2C2RenZgZLRSFSTVK4Ngk68E8PDXVQvJ1ijTp92EasBvXk7R7").exportLegacyKeyPair()
         let group2 = try! contractManifest.createGroup(group2KeyPair, deploySender, 2173916934)
 
         contractManifest.groups = [group2]

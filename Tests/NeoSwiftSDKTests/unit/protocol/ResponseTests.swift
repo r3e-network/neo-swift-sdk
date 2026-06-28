@@ -21,6 +21,32 @@ class ResponseTests: XCTestCase {
         XCTAssert(ethBlock.hasError)
         XCTAssertEqual(ethBlock.error, .init(code: -32602, message: "Invalid address length, expected 40 got 64 bytes"))
     }
+
+    public func testGetResultThrowsStructuredRpcError() {
+        let json = """
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+        "code": -500,
+        "message": "AlreadyExists",
+        "data": {
+            "conflict": "0xabc"
+        }
+    }
+}
+"""
+        let response = decodeJson(NeoBlockCount.self, from: json)
+
+        XCTAssertThrowsError(try response.getResult()) { error in
+            guard case ProtocolError.rpcResponseError(let rpcError) = error else {
+                return XCTFail("Expected ProtocolError.rpcResponseError, got \(error)")
+            }
+            XCTAssertEqual(rpcError.code, -500)
+            XCTAssertEqual(rpcError.message, "AlreadyExists")
+            XCTAssertEqual(rpcError.data, "{\"conflict\":\"0xabc\"}")
+        }
+    }
     
     public func testComplexErrorResponse() {
         let json = """
@@ -40,6 +66,47 @@ class ResponseTests: XCTestCase {
         XCTAssert(ethBlock.hasError)
         XCTAssertEqual(ethBlock.error?.data, "{\"foo\":\"bar\"}"
         )
+    }
+
+    public func testErrorResponsePreservesNonObjectData() {
+        let stringData = decodeJson(NeoBlockCount.self, from: """
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+        "code": -500,
+        "message": "Relay rejected",
+        "data": "AlreadyExists"
+    }
+}
+""")
+        XCTAssertEqual(stringData.error?.data, "\"AlreadyExists\"")
+
+        let arrayData = decodeJson(NeoBlockCount.self, from: """
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+        "code": -500,
+        "message": "Rejected hashes",
+        "data": ["0x01", "0x02"]
+    }
+}
+""")
+        XCTAssertEqual(arrayData.error?.data, "[\"0x01\",\"0x02\"]")
+
+        let numericData = decodeJson(NeoBlockCount.self, from: """
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "error": {
+        "code": -500,
+        "message": "Height",
+        "data": 42
+    }
+}
+""")
+        XCTAssertEqual(numericData.error?.data, "42")
     }
     
     public func testSignMessage() {

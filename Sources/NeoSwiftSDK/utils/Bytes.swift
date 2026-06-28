@@ -29,7 +29,11 @@ public extension Bytes {
     }
     
     var scripthashToAddress: String {
-        let script: Bytes = NeoRpcClientConfiguration.addressVersion + reversed()
+        scripthashToAddress(addressVersion: NeoRpcClientConfiguration.addressVersion)
+    }
+
+    func scripthashToAddress(addressVersion: Byte) -> String {
+        let script: Bytes = addressVersion + reversed()
         let checksum = script.hash256().prefix(upTo: 4)
         return (script + checksum).base58Encoded
     }

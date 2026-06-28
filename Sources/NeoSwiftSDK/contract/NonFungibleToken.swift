@@ -230,10 +230,10 @@ public class NonFungibleToken: Token {
     public func ownersOf(_ tokenId: Bytes) async throws -> Iterator<Hash160> {
         try await throwIfNonDivisibleNFT()
         return try await callFunctionReturningIterator(NonFungibleToken.OWNER_OF, [.byteArray(tokenId)], mapper: { item in
-            guard let address = item.address else {
+            guard let address = item.address(addressVersion: self.rpcClient.config.addressVersion) else {
                 throw ContractError.unexpectedReturnType("No address found in owner", ["byteString"])
             }
-            return try Hash160.fromAddress(address)
+            return try Hash160.fromAddress(address, addressVersion: self.rpcClient.config.addressVersion)
         })
     }
     

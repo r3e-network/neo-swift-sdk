@@ -9,7 +9,7 @@ public struct NeoConstants {
     
     /// The maximum number of public keys that can take part in a multi-signature address.
     ///
-    /// Taken from Neo.SmartContract.Contract.CreateMultiSigRedeemScript(...) in the C# neo repo at [https://github.com/neo-project/neo](https://github.com/neo-project/neo)
+    /// Matches the Neo N3 node-enforced multisig verification-script limit.
     public static let MAX_PUBLIC_KEYS_PER_MULTISIG_ACCOUNT: Int = 1024
     
     /// The byte size of a ``Hash160`` hash.
@@ -29,7 +29,7 @@ public struct NeoConstants {
     
     /// Size of a single signature verification script in bytes.
     ///
-    /// 1 (PUSHDATA OpCode) + 1 (byte for data length) + 33 (public key) + 1 (SYSCALL Opcode) + 4 (InteropServiceCode) = 41
+    /// 1 (PUSHDATA OpCode) + 1 (byte for data length) + 33 (public key) + 1 (SYSCALL Opcode) + 4 (InteropServiceCode) = 40
     public static let VERIFICATION_SCRIPT_SIZE: Int = 40
 
     // MARK: Transactions & Contracts

@@ -56,12 +56,27 @@ public struct Hash160: StringDecodable, Codable, Hashable, Sendable {
     public func toAddress() -> String {
         return hash.scripthashToAddress
     }
+
+    /// Returns the address corresponding to this script hash for the supplied address version.
+    /// - Parameter addressVersion: The Neo address version byte.
+    public func toAddress(addressVersion: Byte) -> String {
+        hash.scripthashToAddress(addressVersion: addressVersion)
+    }
     
     /// Creates a script hash from the given address.
     /// - Parameter address: The address from which to derive the script hash
     /// - Returns: The script hash
     public static func fromAddress(_ address: String) throws -> Hash160 {
         return try .init(address.addressToScriptHash())
+    }
+
+    /// Creates a script hash from the given address using the supplied address version.
+    /// - Parameters:
+    ///   - address: The address from which to derive the script hash
+    ///   - addressVersion: The Neo address version byte
+    /// - Returns: The script hash
+    public static func fromAddress(_ address: String, addressVersion: Byte) throws -> Hash160 {
+        return try .init(address.addressToScriptHash(addressVersion: addressVersion))
     }
     
     /// Creates a script hash from the given script in byte array form.

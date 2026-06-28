@@ -37,8 +37,12 @@ public extension String {
     }
     
     var isValidAddress: Bool {
+        isValidAddress(addressVersion: NeoRpcClientConfiguration.addressVersion)
+    }
+
+    func isValidAddress(addressVersion: Byte) -> Bool {
         guard let data = base58Decoded, data.count == 25,
-              data[0] == NeoRpcClientConfiguration.addressVersion,
+              data[0] == addressVersion,
               Bytes(data.prefix(21)).hash256().prefix(4) == data.suffix(4) else {
             return false
         }
@@ -46,11 +50,27 @@ public extension String {
     }
     
     var isValidHex: Bool {
-        return cleanedHexPrefix.count == cleanedHexPrefix.filter(\.isHexDigit).count && count % 2 == 0
+        let hex = cleanedHexPrefix
+        return hex.count == hex.filter(\.isHexDigit).count && hex.count % 2 == 0
+    }
+
+    func bytesFromValidatedHex(_ fieldName: String, allowEmpty: Bool = false) throws -> Bytes {
+        let hex = cleanedHexPrefix
+        guard allowEmpty || !hex.isEmpty else {
+            throw NeoError.illegalArgument("\(fieldName) must not be empty.")
+        }
+        guard isValidHex else {
+            throw NeoError.illegalArgument("\(fieldName) must be an even-length hexadecimal string.")
+        }
+        return Bytes(hex: hex)
     }
     
     func addressToScriptHash() throws -> Bytes {
-        guard isValidAddress, let b58 = base58Decoded else {
+        try addressToScriptHash(addressVersion: NeoRpcClientConfiguration.addressVersion)
+    }
+
+    func addressToScriptHash(addressVersion: Byte) throws -> Bytes {
+        guard isValidAddress(addressVersion: addressVersion), let b58 = base58Decoded else {
             throw NeoError.illegalArgument("Not a valid NEO address.")
         }
         return b58[1..<21].reversed()

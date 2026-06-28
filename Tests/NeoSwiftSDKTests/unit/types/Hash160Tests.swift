@@ -88,6 +88,18 @@ class Hash160Tests: XCTestCase {
         let hash = try! Hash160.fromPublicKey(defaultAccountPublicKey.bytesFromHex)
         XCTAssertEqual(hash.toAddress(), defaultAccountAddress)
     }
+
+    public func testAddressVersionSpecificEncodingAndDecoding() {
+        NeoRpcClientConfiguration.setAddressVersion(NeoRpcClientConfiguration.DEFAULT_ADDRESS_VERSION)
+        let hash = try! Hash160.fromPublicKey(defaultAccountPublicKey.bytesFromHex)
+        let privateNetworkAddress = hash.toAddress(addressVersion: 0x17)
+
+        XCTAssertNotEqual(privateNetworkAddress, defaultAccountAddress)
+        XCTAssertTrue(privateNetworkAddress.isValidAddress(addressVersion: 0x17))
+        XCTAssertFalse(privateNetworkAddress.isValidAddress)
+        XCTAssertEqual(try! Hash160.fromAddress(privateNetworkAddress, addressVersion: 0x17), hash)
+        XCTAssertThrowsError(try Hash160.fromAddress(privateNetworkAddress))
+    }
     
     public func testCompareTo() {
         let hash1 = try! Hash160.fromScript("01a402d8".bytesFromHex)

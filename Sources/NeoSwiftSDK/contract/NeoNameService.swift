@@ -301,8 +301,8 @@ public class NeoNameService: NonFungibleToken {
         guard let expiration = map[NeoNameService.EXPIRATION_PROPERTY]?.integer else {
             throw NeoError.illegalState("'expiration' property not found in stack item")
         }
-        if let adminAddress = map[NeoNameService.ADMIN_PROPERTY]?.address {
-            return try NameState(name: name, expiration: expiration, admin: Hash160.fromAddress(adminAddress))
+        if let adminAddress = map[NeoNameService.ADMIN_PROPERTY]?.address(addressVersion: rpcClient.config.addressVersion) {
+            return try NameState(name: name, expiration: expiration, admin: Hash160.fromAddress(adminAddress, addressVersion: rpcClient.config.addressVersion))
         }
         return NameState(name: name, expiration: expiration, admin: nil)
     }

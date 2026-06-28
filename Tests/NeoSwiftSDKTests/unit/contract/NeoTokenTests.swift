@@ -42,14 +42,14 @@ class NeoTokenTests: XCTestCase {
         _ = mockUrlSession.data(["invokescript": JSON.from("invokescript_registercandidate"),
                                  "getblockcount": JSON.from("getblockcount_1000")])
         
-        let pubKeyBytes = try account1.keyPair!.publicKey.getEncoded(compressed: true)
+        let pubKeyBytes = try account1.publicKey!.getEncoded(compressed: true)
         let expectedScript = try ScriptBuilder()
             .contractCall(NeoToken.SCRIPT_HASH, method: REGISTER_CANDIDATE,
                           params: [.publicKey(pubKeyBytes)])
             .toArray()
         
         let b = try NeoToken(rpcClient)
-            .registerCandidate(account1.keyPair!.publicKey)
+            .registerCandidate(account1.publicKey!)
             .signers(AccountSigner.global(account1))
         
         XCTAssertEqual(b.signers[0].signerHash, try! account1.getScriptHash())
@@ -61,14 +61,14 @@ class NeoTokenTests: XCTestCase {
         _ = mockUrlSession.data(["invokescript": JSON.from("invokescript_unregistercandidate"),
                                  "getblockcount": JSON.from("getblockcount_1000")])
         
-        let pubKeyBytes = try account1.keyPair!.publicKey.getEncoded(compressed: true)
+        let pubKeyBytes = try account1.publicKey!.getEncoded(compressed: true)
         let expectedScript = try ScriptBuilder()
             .contractCall(NeoToken.SCRIPT_HASH, method: UNREGISTER_CANDIDATE,
                           params: [.publicKey(pubKeyBytes)])
             .toArray()
         
         let b = try NeoToken(rpcClient)
-            .unregisterCandidate(account1.keyPair!.publicKey)
+            .unregisterCandidate(account1.publicKey!)
             .signers(AccountSigner.global(account1))
         
         XCTAssertEqual(b.signers[0].signerHash, try! account1.getScriptHash())
@@ -125,7 +125,7 @@ class NeoTokenTests: XCTestCase {
                                  "getblockcount": JSON.from("getblockcount_1000")])
         _ = mockUrlSession.invokeFunctions(["getCandidates": JSON.from("invokefunction_getcandidates")])
         
-        let pubKey = try account1.keyPair!.publicKey.getEncoded(compressed: true)
+        let pubKey = try account1.publicKey!.getEncoded(compressed: true)
         let expectedScript = try ScriptBuilder()
             .contractCall(NeoToken.SCRIPT_HASH, method: VOTE,
                           params: [.hash160(account1.getScriptHash()), .publicKey(pubKey)])
@@ -156,7 +156,7 @@ class NeoTokenTests: XCTestCase {
     }
     
     public func testBuildVoteScript() throws {
-        let pubKey = account1.keyPair!.publicKey
+        let pubKey = account1.publicKey!
         let expectedScript = try ScriptBuilder()
             .contractCall(NeoToken.SCRIPT_HASH, method: VOTE,
                           params: [.hash160(account1.getScriptHash()),

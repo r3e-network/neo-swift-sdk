@@ -284,6 +284,42 @@ class RequestTests: XCTestCase {
             return rpcClient.getVersion()
         })
     }
+
+    public func testGetNetworkMagicNumberSyncsAddressVersionToClientConfigOnly() async throws {
+        let originalGlobalAddressVersion = NeoRpcClientConfiguration.addressVersion
+        defer { NeoRpcClientConfiguration.setAddressVersion(originalGlobalAddressVersion) }
+        let json = """
+{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+        "tcpport": 10333,
+        "nonce": 1234,
+        "useragent": "/Neo:3.10.0/",
+        "protocol": {
+            "network": 860833102,
+            "validatorscount": 7,
+            "msperblock": 15000,
+            "maxvaliduntilblockincrement": 5760,
+            "maxtraceableblocks": 2102400,
+            "addressversion": 23,
+            "maxtransactionsperblock": 512,
+            "memorypoolmaxtransactions": 50000,
+            "initialgasdistribution": 5200000000000000
+        }
+    }
+}
+"""
+        let mockUrlSession = MockURLSession().data(["getversion": Data(json.utf8)])
+        let config = NeoRpcClientConfiguration()
+        let rpcClient = NeoRpcClient.build(HttpService(urlSession: mockUrlSession), config)
+
+        let networkMagic = try await rpcClient.getNetworkMagicNumber()
+
+        XCTAssertEqual(networkMagic, 860833102)
+        XCTAssertEqual(config.addressVersion, 23)
+        XCTAssertEqual(NeoRpcClientConfiguration.addressVersion, originalGlobalAddressVersion)
+    }
     
     public func testSendRawTransaction() {
         let json = "{\"jsonrpc\":\"2.0\"," +
@@ -943,6 +979,83 @@ class RequestTests: XCTestCase {
             return try! rpcClient.getNep17Balances(Hash160("5d75775015b024970bfeacf7c6ab1b0ade974886"))
         })
     }
+
+    public func testClientAddressVersionIsUsedForAddressRpcParameters() {
+        let addressVersion: Byte = 0x17
+        let scriptHash = try! Hash160("5d75775015b024970bfeacf7c6ab1b0ade974886")
+        let expectedAddress = scriptHash.toAddress(addressVersion: addressVersion)
+        let json = "{\"jsonrpc\":\"2.0\"," +
+        "\"method\":\"getnep17balances\"," +
+        "\"id\":1," +
+        "\"params\":[\"\(expectedAddress)\"]}"
+
+        verifyRequest(json, config: .init(addressVersion: addressVersion)) { rpcClient in
+            rpcClient.getNep17Balances(scriptHash)
+        }
+    }
+
+    public func testClientAddressVersionIsUsedForWalletAddressRpcParameters() {
+        let addressVersion: Byte = 0x17
+        let scriptHash = try! Hash160("c11d816956b6682c3406bb99b7ec8a3e93f005c1")
+        let expectedAddress = scriptHash.toAddress(addressVersion: addressVersion)
+
+        let dumpPrivKeyJson = "{\"jsonrpc\":\"2.0\"," +
+        "\"method\":\"dumpprivkey\"," +
+        "\"id\":1," +
+        "\"params\":[\"\(expectedAddress)\"]}"
+        verifyRequest(dumpPrivKeyJson, config: .init(addressVersion: addressVersion)) { rpcClient in
+            rpcClient.dumpPrivKey(scriptHash)
+        }
+
+        let unclaimedGasJson = "{\"jsonrpc\":\"2.0\"," +
+        "\"method\":\"getunclaimedgas\"," +
+        "\"id\":1," +
+        "\"params\":[\"\(expectedAddress)\"]}"
+        verifyRequest(unclaimedGasJson, config: .init(addressVersion: addressVersion)) { rpcClient in
+            rpcClient.getUnclaimedGas(scriptHash)
+        }
+    }
+
+    public func testClientAddressVersionIsUsedForWalletTransferRpcParameters() {
+        let addressVersion: Byte = 0x17
+        let tokenHash = try! Hash160("0xde5f57d430d3dece511cf975a8d37848cb9e0525")
+        let fromHash = try! Hash160("8cdb257b8873049918fe5a1e7f6289f75d720ba5")
+        let toHash = try! Hash160("db1acbae4dbae55f8325724cf080ed782925c7a7")
+        let fromAddress = fromHash.toAddress(addressVersion: addressVersion)
+        let toAddress = toHash.toAddress(addressVersion: addressVersion)
+
+        let sendFromJson = "{\"jsonrpc\":\"2.0\"," +
+        "\"method\":\"sendfrom\"," +
+        "\"id\":1," +
+        "\"params\":[\"\(tokenHash.string)\",\"\(fromAddress)\",\"\(toAddress)\",10]}"
+        verifyRequest(sendFromJson, config: .init(addressVersion: addressVersion)) { rpcClient in
+            rpcClient.sendFrom(tokenHash, fromHash, toHash, 10)
+        }
+
+        verifyRequest(sendFromJson, config: .init(addressVersion: addressVersion)) { rpcClient in
+            try rpcClient.sendFrom(fromHash, TransactionSendToken(token: tokenHash, value: 10, address: toAddress))
+        }
+
+        let sendManyJson = "{\"jsonrpc\":\"2.0\"," +
+        "\"method\":\"sendmany\"," +
+        "\"id\":1," +
+        "\"params\":[\"\(fromAddress)\",[{\"asset\":\"\(tokenHash.string)\",\"value\":10,\"address\":\"\(toAddress)\"}]]}"
+        verifyRequest(sendManyJson, config: .init(addressVersion: addressVersion)) { rpcClient in
+            rpcClient.sendMany(fromHash, [TransactionSendToken(token: tokenHash, value: 10, address: toAddress)])
+        }
+
+        let sendToAddressJson = "{\"jsonrpc\":\"2.0\"," +
+        "\"method\":\"sendtoaddress\"," +
+        "\"id\":1," +
+        "\"params\":[\"\(tokenHash.string)\",\"\(toAddress)\",10]}"
+        verifyRequest(sendToAddressJson, config: .init(addressVersion: addressVersion)) { rpcClient in
+            rpcClient.sendToAddress(tokenHash, toHash, 10)
+        }
+
+        verifyRequest(sendToAddressJson, config: .init(addressVersion: addressVersion)) { rpcClient in
+            try rpcClient.sendToAddress(TransactionSendToken(token: tokenHash, value: 10, address: toAddress))
+        }
+    }
     
     // MARK: ApplicationLogs
     
@@ -1300,42 +1413,26 @@ class RequestTests: XCTestCase {
         })
     }
     
-    private func verifyRequest<T: Response<U>, U>(_ expected: String, _ makeRequest: (NeoRpcClient) throws -> Request<T, U>) {
-        let mockUrlSession = MockURLSession().requestInterceptor { request in
-            guard let body = request.httpBody else {
-                return XCTFail("No request body")
-            }
-            self.assertJsonRequestBody(body, equals: expected)
-        }
-        let httpService = HttpService(urlSession: mockUrlSession)
-        let rpcClient = NeoRpcClient.build(httpService)
+    private func verifyRequest<T: Response<U>, U>(_ expected: String, config: NeoRpcClientConfiguration = .init(), _ makeRequest: (NeoRpcClient) throws -> Request<T, U>) {
+        let httpService = HttpService(urlSession: MockURLSession())
+        let rpcClient = NeoRpcClient.build(httpService, config)
         NeoRpcClientConfiguration.REQUEST_COUNTER.reset()
         let request: Request<T, U> = try! makeRequest(rpcClient)
-        performRequest(request)
+        assertJsonRequestBody(try! requestPayload(request), equals: expected)
     }
     
     private func verifyExpressRequest<T: Response<U>, U>(_ expected: String, _ makeRequest: (NeoExpressClient) throws -> Request<T, U>) {
-        let mockUrlSession = MockURLSession().requestInterceptor { request in
-            guard let body = request.httpBody else {
-                return XCTFail("No request body")
-            }
-            self.assertJsonRequestBody(body, equals: expected)
-        }
-        let httpService = HttpService(urlSession: mockUrlSession)
+        let httpService = HttpService(urlSession: MockURLSession())
         let rpcClient: NeoExpressClient = NeoExpressClient.build(httpService)
         NeoRpcClientConfiguration.REQUEST_COUNTER.reset()
         let request: Request<T, U> = try! makeRequest(rpcClient)
-        performRequest(request)
+        assertJsonRequestBody(try! requestPayload(request), equals: expected)
     }
     
-    public func performRequest<T: Response<U>, U>(_ request: Request<T, U>) {
-        let semaphore = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) let request = request
-        Task {
-            _ = try! await request.send()
-            semaphore.signal()
-        }
-        semaphore.wait()
+    private func requestPayload<T: Response<U>, U>(_ request: Request<T, U>) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .withoutEscapingSlashes
+        return try encoder.encode(request)
     }
 
     private func assertJsonRequestBody(_ body: Data, equals expected: String) {

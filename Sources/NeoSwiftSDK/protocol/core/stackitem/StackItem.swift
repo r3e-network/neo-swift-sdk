@@ -190,8 +190,12 @@ extension StackItem {
     }
     
     var address: String? {
+        address(addressVersion: NeoRpcClientConfiguration.addressVersion)
+    }
+
+    func address(addressVersion: Byte) -> String? {
         switch self {
-        case .byteString(let bytes), .buffer(let bytes): return try? Hash160(bytes.reversed()).toAddress()
+        case .byteString(let bytes), .buffer(let bytes): return try? Hash160(bytes.reversed()).toAddress(addressVersion: addressVersion)
         default: return nil
         }
     }

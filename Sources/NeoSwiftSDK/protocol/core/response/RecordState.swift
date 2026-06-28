@@ -13,6 +13,7 @@ public struct RecordState: Codable, Hashable {
     
     public static func fromStackItem(_ stackItem: StackItem) throws -> RecordState {
         guard case .array(let list) = stackItem,
+              list.count >= 3,
               let name = list[0].string,
               let byte = list[1].integer,
               let recordType = RecordType.valueOf(Byte(byte)),

@@ -28,7 +28,7 @@ class RoleManagementTests: XCTestCase {
         let designationJson = JSON.from("designation_getByRole")
         _ = mockUrlSession.data(["invokefunction": designationJson, "getblockcount": blockCountJson])
         let list = try! await roleManagement.getDesignatedByRole(.stateValidator, blockIndex: 10)
-        XCTAssert(list.contains(account1.keyPair!.publicKey))
+        XCTAssert(list.contains(account1.publicKey!))
     }
     
     public func testGetDesignatedByRole_emptyResponse() async {
@@ -62,13 +62,13 @@ class RoleManagementTests: XCTestCase {
     public func testDesignateAsRole() {
         let designationJson = JSON.from("designation_designateAsRole")
         _ = mockUrlSession.data(["invokefunction": designationJson])
-        let keyParam = try! ContractParameter.publicKey(account1.keyPair!.publicKey.getEncoded(compressed: true))
+        let keyParam = try! ContractParameter.publicKey(account1.publicKey!.getEncoded(compressed: true))
         let expectedScript = try! ScriptBuilder()
             .contractCall(RoleManagement.SCRIPT_HASH,
                           method: "designateAsRole",
                           params: [.integer(Role.oracle.byte), .array([keyParam])])
             .toArray()
-        let builder = try! roleManagement.designateAsRole(.oracle, [account1.keyPair!.publicKey])
+        let builder = try! roleManagement.designateAsRole(.oracle, [account1.publicKey!])
         XCTAssertEqual(builder.script, expectedScript)
     }
     

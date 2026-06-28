@@ -27,6 +27,9 @@ public class NeoRpcClientConfiguration {
     /// The default value is nil. Only once ``NeoRpcClient/NeoRpcClient/getNetworkMagicNumber()`` or ``NeoRpcClient/NeoRpcClient/getNetworkMagicNumberBytes()``  is called for the first time the value is set.
     /// This is because the magic number is fetched directly from the neo-node.
     public private(set) var networkMagic: Int? = nil
+
+    /// The address version used by this client instance when converting script hashes to addresses.
+    public private(set) var addressVersion: Byte = DEFAULT_ADDRESS_VERSION
     
     /// The block interval in milliseconds.
     public private(set) var blockInterval: Int = DEFAULT_BLOCK_TIME
@@ -49,6 +52,7 @@ public class NeoRpcClientConfiguration {
     /// Constructs a configuration instance
     public init(
         networkMagic: Int? = nil,
+        addressVersion: Byte = DEFAULT_ADDRESS_VERSION,
         blockInterval: Int = DEFAULT_BLOCK_TIME,
         maxValidUntilBlockIncrement: Int = MAX_VALID_UNTIL_BLOCK_INCREMENT_BASE / DEFAULT_BLOCK_TIME,
         pollingInterval: Int = DEFAULT_BLOCK_TIME,
@@ -57,6 +61,7 @@ public class NeoRpcClientConfiguration {
         nnsResolver: Hash160 = MAINNET_NNS_CONTRACT_HASH
     ) {
         self.networkMagic = networkMagic
+        self.addressVersion = addressVersion
         self.blockInterval = blockInterval
         self.maxValidUntilBlockIncrement = maxValidUntilBlockIncrement
         self.pollingInterval = pollingInterval
@@ -89,6 +94,17 @@ public class NeoRpcClientConfiguration {
         addressVersionQueue.sync {
             addressVersionStorage = addressVersion
         }
+    }
+
+    /// Sets the address version for this client instance.
+    ///
+    /// Prefer this instance setting for clients that connect to private or mixed networks. The static address version
+    /// remains a default for standalone address utilities and should not be mutated from node metadata.
+    /// - Parameter addressVersion: The address version
+    /// - Returns: The config (self)
+    public func setAddressVersion(_ addressVersion: Byte) -> NeoRpcClientConfiguration {
+        self.addressVersion = addressVersion
+        return self
     }
     
     /// Sets the network magic number.

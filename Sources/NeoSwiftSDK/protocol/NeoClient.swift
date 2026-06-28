@@ -50,7 +50,10 @@ public final class NeoClient {
 
     public func getStorage(input: GetStorageInput) async throws -> GetStorageOutput {
         let value = try await rpcClient.getStorage(input.contractHash, input.keyHexString).send().getResult()
-        return GetStorageOutput(value: value)
+        guard let data = Data(base64Encoded: value) else {
+            throw ProtocolError.illegalState("Neo RPC getstorage returned a value that is not valid Base64.")
+        }
+        return GetStorageOutput(value: Bytes(data), valueBase64String: value)
     }
     
     public func sendRawTransaction(input: SendRawTransactionInput) async throws -> SendRawTransactionOutput {
@@ -152,27 +155,45 @@ public struct GetVersionOutput: Codable, Hashable {
 
 public struct GetStorageInput: Codable, Hashable {
     public let contractHash: Hash160
-    public let keyHexString: String
+    public let key: Bytes
 
-    public init(contractHash: Hash160, keyHexString: String) {
+    public var keyHexString: String {
+        key.noPrefixHex
+    }
+
+    public init(contractHash: Hash160, key: Bytes) {
         self.contractHash = contractHash
-        self.keyHexString = keyHexString
+        self.key = key
+    }
+
+    public init(contractHash: Hash160, keyHexString: String) throws {
+        try self.init(contractHash: contractHash, key: keyHexString.bytesFromValidatedHex("Storage key hex", allowEmpty: true))
     }
 }
 
 public struct GetStorageOutput: Codable, Hashable {
-    public let value: String
+    public let value: Bytes
+    public let valueBase64String: String
 
-    public init(value: String) {
+    public init(value: Bytes, valueBase64String: String? = nil) {
         self.value = value
+        self.valueBase64String = valueBase64String ?? value.base64Encoded
     }
 }
 
 public struct SendRawTransactionInput: Codable, Hashable {
-    public let rawTransactionHex: String
+    public let rawTransaction: Bytes
 
-    public init(rawTransactionHex: String) {
-        self.rawTransactionHex = rawTransactionHex
+    public var rawTransactionHex: String {
+        rawTransaction.noPrefixHex
+    }
+
+    public init(rawTransaction: Bytes) {
+        self.rawTransaction = rawTransaction
+    }
+
+    public init(rawTransactionHex: String) throws {
+        try self.init(rawTransaction: rawTransactionHex.bytesFromValidatedHex("Raw transaction hex"))
     }
 }
 
