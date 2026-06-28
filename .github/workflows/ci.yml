@@ -11,7 +11,7 @@ env:
 
 jobs:
   ubuntu:
-    name: Ubuntu Swift ${{ env.SWIFT_VERSION }}
+    name: Ubuntu Swift 6.1.2
     runs-on: ubuntu-24.04
     timeout-minutes: 25
 
@@ -33,7 +33,7 @@ jobs:
         run: swift test -Xswiftc -warnings-as-errors --parallel
 
   macos:
-    name: macOS Swift ${{ env.SWIFT_VERSION }}
+    name: macOS Swift 6.1.2
     runs-on: macos-15
     timeout-minutes: 25
 
