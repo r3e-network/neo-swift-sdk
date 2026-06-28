@@ -6,6 +6,7 @@
 [![Security](https://img.shields.io/badge/Security-Production%20Ready-brightgreen.svg)](docs/SECURITY.md)
 
 `neo-swift-sdk` is a Swift 6 SDK for Neo N3 applications. It targets Neo N3 v3.10.0 RPC, exposes an AWS SDK-style operation client for application code, and keeps a lower-level JSON-RPC request builder for advanced workflows.
+Protocol compatibility for this release was checked against `neo-project/neo-node` tag `v3.10.0`.
 
 ## Features
 
@@ -22,7 +23,7 @@ Add the package to `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/r3e-network/neo-swift-sdk", from: "3.0.1")
+    .package(url: "https://github.com/r3e-network/neo-swift-sdk", from: "4.0.0")
 ]
 ```
 
@@ -152,6 +153,7 @@ For production applications:
 
 - Use `SecureECKeyPair` for private key material.
 - Encrypt stored keys with NEP-2.
+- Use HTTPS for non-local RPC endpoints. Plaintext HTTP is rejected by default unless explicitly enabled for trusted development networks.
 - Validate transaction scripts, signers, fees, and network magic before signing.
 - Avoid logging private keys, WIF values, invocation scripts containing secrets, or wallet passwords.
 - Review [docs/SECURITY.md](docs/SECURITY.md) and [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
@@ -160,7 +162,7 @@ For production applications:
 
 ```bash
 swift test
-swift test --filter SecurityTests
+swift test -Xswiftc -warnings-as-errors
 ENABLE_NETWORK_TESTS=true swift test --filter IntegrationTests
 ```
 

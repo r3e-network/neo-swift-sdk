@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-06-28
+
+### Added
+- Added structured JSON-RPC error propagation through `RpcResponseError`.
+- Added address-version-aware Hash160, byte, string, RPC request, and stack-item conversion helpers for private and mixed Neo networks.
+- Added secure NEP-2 encryption/decryption overloads and secure-key signing paths for witnesses, invocation scripts, and transactions.
+- Added tests for plaintext RPC transport rejection, structured RPC errors, custom address-version RPC parameters, strict typed-client hex validation, and invalid Base64 storage responses.
+
+### Changed
+- Neo N3 v3.10.0 protocol compatibility was checked against `neo-project/neo-node` tag `v3.10.0`.
+- `Account` now treats `SecureECKeyPair` as authoritative key material; legacy key export is explicit and deprecated.
+- `Bip39Account` now stores its mnemonic in secure memory and requires explicit `exportMnemonic()` for recovery phrase export.
+- `NeoClient` storage and raw-transaction inputs use typed `Bytes`, reject malformed hex at construction, and return decoded storage bytes plus the original Base64 string.
+- `HttpService` now rejects non-local plaintext HTTP by default and redacts non-2xx HTTP response bodies from thrown errors.
+- `Response.getResult()` now throws structured RPC errors instead of flattening node error details.
+- Test request serialization no longer uses async task/semaphore bridging and is warning-clean under Swift 6.
+- CI now runs the full test suite with warnings-as-errors and adds repo-wide secret plus dependency vulnerability scans.
+
+### Fixed
+- Fixed instance address-version handling so node metadata updates the client configuration without mutating global address utilities.
+- Fixed contract stack-item address decoding to honor the connected client address version.
+- Fixed stack parsing bounds checks in native contract helpers and record-state mapping.
+- Fixed multisig signing to throw when a required private key is missing instead of silently compacting signatures.
+- Fixed temporary BIP-39 and NEP-2 key material cleanup paths.
+
 ## [3.0.1] - 2026-06-28
 
 ### Changed
