@@ -17,16 +17,18 @@ public class JsonRpc2_0Rx {
     }
     
     public func blockPublisher(_ fullTransactionObjects: Bool, _ pollingInterval: Int) -> AnyPublisher<NeoGetBlock, Error> {
+        let rpcClient = self.rpcClient
         return blockIndexPublisher(pollingInterval).asyncMap { index in
-            return try await self.rpcClient.getBlock(index, fullTransactionObjects).send()
+            return try await rpcClient.getBlock(index, fullTransactionObjects).send()
         }.eraseToAnyPublisher()
     }
     
     public func replayBlocksPublisher(_ startBlock: Int, _ endBlock: Int, _ fullTransactionObjects: Bool, _ ascending: Bool = true) -> AnyPublisher<NeoGetBlock, Error> {
         var blocks: [Int] = Array(startBlock...endBlock)
         if !ascending { blocks.reverse() }
+        let rpcClient = self.rpcClient
         return blocks.publisher.setFailureType(to: Error.self).asyncMap { block in
-            return try await self.rpcClient.getBlock(block, fullTransactionObjects).send()
+            return try await rpcClient.getBlock(block, fullTransactionObjects).send()
         }.eraseToAnyPublisher()
     }
     
@@ -47,8 +49,9 @@ public class JsonRpc2_0Rx {
     }
     
     public func latestBlockIndexPublisher() -> AnyPublisher<Int, Error> {
+        let rpcClient = self.rpcClient
         return Just("").setFailureType(to: Error.self).asyncMap { _ in
-            return try await self.rpcClient.getBlockCount().send().getResult() - 1
+            return try await rpcClient.getBlockCount().send().getResult() - 1
         }.eraseToAnyPublisher()
     }
     

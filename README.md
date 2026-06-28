@@ -23,7 +23,7 @@ Add the package to `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/r3e-network/neo-swift-sdk", from: "4.0.0")
+    .package(url: "https://github.com/r3e-network/neo-swift-sdk", from: "4.0.1")
 ]
 ```
 

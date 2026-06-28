@@ -42,14 +42,16 @@ public struct BlockIndexPolling {
 }
 
 
-extension Publisher where Output: Sendable {
+extension Publisher {
     /// Maps values using an async transformation without blocking threads
-    func asyncMap<T: Sendable>(
-        _ transform: @escaping @Sendable (Output) async throws -> T
+    func asyncMap<T>(
+        _ transform: @escaping (Output) async throws -> T
     ) -> Publishers.FlatMap<Future<T, Error>, Self> {
         flatMap(maxPublishers: .max(1)) { value in
             Future<T, Error> { promise in
                 nonisolated(unsafe) let promise = promise
+                nonisolated(unsafe) let value = value
+                nonisolated(unsafe) let transform = transform
                 Task {
                     do {
                         let output = try await transform(value)
@@ -64,8 +66,8 @@ extension Publisher where Output: Sendable {
     
     /// Legacy syncMap for backward compatibility - DEPRECATED
     @available(*, deprecated, renamed: "asyncMap", message: "Use asyncMap instead to avoid thread blocking")
-    func syncMap<T: Sendable>(
-        _ transform: @escaping @Sendable (Output) async throws -> T
+    func syncMap<T>(
+        _ transform: @escaping (Output) async throws -> T
     ) -> Publishers.FlatMap<Future<T, Error>, Self> {
         return asyncMap(transform)
     }

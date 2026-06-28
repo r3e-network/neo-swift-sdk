@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-06-28
+
+### Fixed
+- Fixed Swift 6.1 macOS release builds by keeping the Combine async publisher bridge's unchecked sendability boundary local to the bridge.
+
 ## [4.0.0] - 2026-06-28
 
 ### Added
