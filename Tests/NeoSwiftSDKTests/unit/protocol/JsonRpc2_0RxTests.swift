@@ -13,7 +13,7 @@ class JsonRpc2_0RxTests: XCTestCase {
     override func setUp() {
         super.setUp()
         mockUrlSession = MockURLSession()
-        rpcClient = NeoRpcClient.build(HttpService(urlSession: mockUrlSession), .init(pollingInterval: 1000))
+        rpcClient = NeoRpcClient.build(HttpService(urlSession: mockUrlSession), .init(pollingInterval: 50))
     }
     
     public func testReplayBlocksObservable() {
@@ -66,20 +66,26 @@ class JsonRpc2_0RxTests: XCTestCase {
         let publisher = rpcClient.catchUpToLatestAndSubscribeToNewBlocksPublisher(0, false)
         let expectation = XCTestExpectation()
         var results: [NeoGetBlock] = []
+        let expectedBlocks = neoGetBlocks.map(\.block!)
         
         let cancellable = publisher.sink { completion in
             switch completion {
             case .finished: expectation.fulfill()
             case .failure(let error): XCTFail(error.localizedDescription)
             }
-        } receiveValue: { results.append($0) }
+        } receiveValue: {
+            results.append($0)
+            if results.count == expectedBlocks.count {
+                expectation.fulfill()
+            }
+        }
         
         cancellable.store(in: &cancellables)
         
-        _ = XCTWaiter.wait(for: [expectation], timeout: 10)
+        _ = XCTWaiter.wait(for: [expectation], timeout: 5)
+        cancellable.cancel()
         
         let receivedBlocks = results.map(\.block!)
-        let expectedBlocks = neoGetBlocks.map(\.block!)
         XCTAssertGreaterThanOrEqual(receivedBlocks.count, expectedBlocks.count)
         XCTAssertEqual(Array(receivedBlocks.prefix(expectedBlocks.count)), expectedBlocks)
     }
@@ -93,20 +99,26 @@ class JsonRpc2_0RxTests: XCTestCase {
         let publisher = rpcClient.subscribeToNewBlocksPublisher(false)
         let expectation = XCTestExpectation()
         var results: [NeoGetBlock] = []
+        let expectedBlocks = neoGetBlocks.map(\.block!)
         
         let cancellable = publisher.sink { completion in
             switch completion {
             case .finished: expectation.fulfill()
             case .failure(let error): XCTFail(error.localizedDescription)
             }
-        } receiveValue: { results.append($0) }
+        } receiveValue: {
+            results.append($0)
+            if results.count == expectedBlocks.count {
+                expectation.fulfill()
+            }
+        }
         
         cancellable.store(in: &cancellables)
         
-        _ = XCTWaiter.wait(for: [expectation], timeout: 10)
+        _ = XCTWaiter.wait(for: [expectation], timeout: 5)
+        cancellable.cancel()
         
         let receivedBlocks = results.map(\.block!)
-        let expectedBlocks = neoGetBlocks.map(\.block!)
         XCTAssertGreaterThanOrEqual(receivedBlocks.count, expectedBlocks.count)
         XCTAssertEqual(Array(receivedBlocks.prefix(expectedBlocks.count)), expectedBlocks)
     }
