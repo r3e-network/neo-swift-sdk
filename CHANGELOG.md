@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.1] - 2026-06-28
 
 ### Fixed
+- Fixed GitHub Actions build workflow registration and static CI job names for branch and tag validation.
 - Fixed Swift 6.1 macOS release builds by keeping the Combine async publisher bridge's unchecked sendability boundary local to the bridge.
+- Fixed dependency vulnerability scanning by auditing SwiftPM remote pins against OSV's SwiftURL ecosystem instead of invoking an unsupported `Package.resolved` lockfile extractor.
 
 ## [4.0.0] - 2026-06-28
 
