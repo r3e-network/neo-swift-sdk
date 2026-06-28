@@ -60,7 +60,7 @@ class JsonRpc2_0RxTests: XCTestCase {
         let neoGetBlocks = [MockBlocks.createBlock(0), MockBlocks.createBlock(1), MockBlocks.createBlock(2), MockBlocks.createBlock(3),
                             MockBlocks.createBlock(4), MockBlocks.createBlock(5), MockBlocks.createBlock(6)]
         
-        let blockCounts = (4...7).map { encode(NeoBlockCount($0)) }
+        let blockCounts = [4, 5, 5, 6, 7].map { encode(NeoBlockCount($0)) }
         _ = mockUrlSession.data(["getblockcount": blockCounts, "getblockheader": neoGetBlocks.map { encode($0) }])
         
         let publisher = rpcClient.catchUpToLatestAndSubscribeToNewBlocksPublisher(0, false)
@@ -82,7 +82,7 @@ class JsonRpc2_0RxTests: XCTestCase {
         
         cancellable.store(in: &cancellables)
         
-        _ = XCTWaiter.wait(for: [expectation], timeout: 5)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
         cancellable.cancel()
         
         let receivedBlocks = results.map(\.block!)
@@ -115,7 +115,7 @@ class JsonRpc2_0RxTests: XCTestCase {
         
         cancellable.store(in: &cancellables)
         
-        _ = XCTWaiter.wait(for: [expectation], timeout: 5)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
         cancellable.cancel()
         
         let receivedBlocks = results.map(\.block!)
