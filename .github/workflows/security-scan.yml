@@ -39,10 +39,7 @@ jobs:
             dir /repo --redact --exit-code=1
 
       - name: Dependency vulnerability scan
-        uses: google/osv-scanner-action/osv-scanner-action@v2.3.8
-        with:
-          scan-args: |-
-            --lockfile=Package.resolved
+        run: python3 .github/scripts/osv-swiftpm-audit.py
 
       - name: Semgrep
         uses: semgrep/semgrep-action@v1
